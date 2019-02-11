@@ -14,24 +14,14 @@ Please contact us at nicolas.dureisseix@etu.enseeiht.fr if an error occurs.
 
 Use RTLogPrintf(string, args) to print debug message. The debug will go into .log files in VirtualBox folder.
 
-You can use `cleanlog.sh` script to clean all logs and `printlog.sh` to print them in the console.
+You can use `cleanlog` script to clean all logs and `printlog` to print them in the console.
 
 ## VM
 
 There is not script for VM creation/management yet. Please create a VM called ProjetLong with 2CPU Cores and 8Gb RAM.
 
-Load `e1k.c`, `e1k_utils.h` and `Makefile` the VM.
+Download `fake_driver` folder into the VM and run `load_fake_driver`. Use `rebuild` if you have already load the driver and you want to apply changes.
 
-Use 
-
-> $ make
-
-and
-
-> # rmmod e1000; insmod e1k.ko
-
-to load fake driver. 
-
-## Note
+## Note
 
 Some scripts will arrive to make it easier for users, on VM and VMM.
