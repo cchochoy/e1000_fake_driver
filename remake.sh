@@ -5,7 +5,10 @@ echo ""
 echo "============================================================="
 echo "                           CLEAN                             "
 echo "============================================================="
-sudo rm *.log
+FILES=`ls | grep 20..-.*\.log`
+if [[ $(echo $FILES | wc -m) -ne "1" ]]; then
+	sudo rm $FILES
+fi
 sleep 2
 
 echo ""

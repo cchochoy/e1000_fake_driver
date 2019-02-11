@@ -14,6 +14,12 @@ Please contact us at nicolas.dureisseix@etu.enseeiht.fr if an error occurs.
 
 Use RTLogPrintf(string, args) to print debug message. The debug will go into .log files in VirtualBox folder.
 
+Look into the files :
+
+* src/VBox/Devices/Network/DevE1000 .cpp / .h ;
+
+* src/VBox/Devices/Network/DevEEPROM .cpp / .h.
+
 You can use `cleanlog` script to clean all logs and `printlog` to print them in the console.
 
 ## VM
