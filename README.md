@@ -26,7 +26,7 @@ You can use `cleanlog` script to clean all logs and `printlog` to print them in 
 
 There is not script for VM creation/management yet. Please create a VM called ProjetLong with 2CPU Cores and 8Gb RAM.
 
-Download `fake_driver` folder into the VM and run `load_fake_driver`. Use `rebuild` if you have already load the driver and you want to apply changes.
+Download `fake_driver` folder into the VM and run `load_fake_driver`. Use `reload_fake_driver` if you have already load the driver and you want to apply changes.
 
 ## Note
 
