@@ -6,6 +6,7 @@
 
 /*                      Register Offset                      */
 #define CTRL		0x00000		/* Device Control					- 	RW */
+#define STATUS		0x00008		/* Device Status					-	RO */
 #define EECD		0x00010		/* EEPROM/Flash Control				- 	RW */
 #define TCTL		0x00400		/* TX Control						- 	RW */
 #define TDBAL		0x03800		/* TX Descriptor Base Address Low	- 	RW */
@@ -24,6 +25,7 @@
 #define EECD_SK		0x00000001	/* EEPROM Clock */
 #define EECD_CS		0x00000002	/* EEPROM Chip Select */
 #define EECD_DI		0x00000004	/* EEPROM Data In */
+#define EECD_DO		0x00000008	/* EEPROM Data Out */
 #define EECD_FWE_EN 0x00000020  /* Enable FLASH writes */
 #define EECD_REQ	0x00000040	/* EEPROM Access Request */
 #define EECD_GNT	0x00000080	/* EEPROM Access Grant */
@@ -50,6 +52,9 @@
 		read_iomem32(bar0,reg)
 #define set_register(reg,val)				\
 		write_iomem32(bar0,reg,val)
+		
+#define write_flush()						\
+		do { get_register(STATUS); } while (0)
 
 #define low16(addr16)						\
 		(uint8_t)(addr16 & 0xff)

@@ -1,0 +1,9 @@
+fake_driver/*.o
+fake_driver/*.o.cmd
+fake_driver/modules.order
+fake_driver/Module.symvers
+fake_driver/*.ko
+fake_driver/*.ko.cmd
+fake_driver/*.mod.c
+fake_driver/*.mod.o
+fake_driver/*.mod.o.cmd

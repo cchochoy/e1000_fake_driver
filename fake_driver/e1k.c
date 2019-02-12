@@ -173,47 +173,77 @@ static void address_overflow(uint16_t new_addr)
 	//-----------------------------------------//
 }
 
-/* Write two bytes at arbitrary 16-bit offset from m_au16Data */
-static void write_primitive(uint16_t address, uint16_t value)
+void wait_access(void)
 {
-	int i;
-	uint8_t bit;
 	uint32_t eecd;
 
-	address_overflow(address);
-
-	// 0. Wait to access the EEPROM
 	eecd = get_register(EECD) | EECD_REQ | EECD_FWE_EN;
 	set_register(EECD, eecd);
 
 	while (!(get_register(EECD) & EECD_GNT)) {
 		ssleep(1);
 	}
+}
+
+void emul_clock(uint32_t * eecd)
+{	
+	*eecd = *eecd | EECD_SK;
+	set_register(EECD, *eecd);
+	write_flush();
+	udelay(50);
+
+	*eecd = *eecd & ~EECD_SK;
+	set_register(EECD, *eecd);
+	write_flush();
+	udelay(50);
+}
+
+/* Write two bytes at arbitrary 16-bit offset from m_au16Data */
+static void write_primitive(uint16_t address, uint16_t value)
+{
+	int i;
+	uint32_t eecd;
+
+	address_overflow(address);
+
+	// 0. Wait to access the EEPROM
+	wait_access();
 
 	// 1. Return in STANDBY
-	eecd = get_register(EECD) & ~EECD_CS;
+	eecd = get_register(EECD) & ~(EECD_CS | EECD_SK | EECD_DI | EECD_DO);
 	set_register(EECD, eecd);
-	eecd = get_register(EECD) | EECD_CS;
-	set_register(EECD, eecd);
-
+	
 	// 2. Go in READING_DI
+	wait_access();
 	eecd = get_register(EECD) | EECD_CS | EECD_SK | EECD_DI;
 	set_register(EECD, eecd);
+	write_flush();
+	udelay(50);
+	
+	emul_clock(&eecd);
+	
+	eecd = eecd | EECD_SK;
+	set_register(EECD, eecd);
+	write_flush();
+	udelay(50);
 
-	for (i = 0; i < 16; ++i) {
-		// 3.
-		eecd = get_register(EECD) | EECD_CS & ~EECD_SK;
-		set_register(EECD, eecd);
+	for(i = 0; i < 16; i++) {
+		eecd &= ~EECD_DI;
 
-		// 4. Write in Word
-		bit = (value >> 16 - i) & 1;
-		eecd = get_register(EECD) | EECD_CS | EECD_SK | EECD_DI;
+		if (value & i)
+			eecd |= EECD_DI;
+
 		set_register(EECD, eecd);
+		write_flush();
+		udelay(50);
+
+		emul_clock(&eecd);
 	}
 
-	// 5. Release access to EEPROM.
-	eecd = get_register(EECD) & ~EECD_REQ;
+	/* We leave the "DI" bit set to "0" when we leave this routine. */
+	eecd &= ~EECD_DI;
 	set_register(EECD, eecd);
+
 }
 
 /* Dump Specific Register */

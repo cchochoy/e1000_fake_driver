@@ -5,6 +5,14 @@ sudo apt-get -y -qq update
 sudo apt-get -y -qq upgrade
 
 echo ""
+echo "Remove previous build ..."
+rm *.symvers
+rm *.ko
+rm *.o
+rm *.mod*
+rm *.order
+
+echo ""
 echo "Build module ..."
 make
 
