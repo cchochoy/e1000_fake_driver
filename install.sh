@@ -105,6 +105,11 @@ until [[ $VBOX_BUILD_KIND =~ (debug|release) ]]; do
         read -rp "What kind of VirtualBox do you want to build ? [debug/release]: " -e VBOX_BUILD_KIND
 done
 
+if [[ $VBOX_VERSION = "own" ]]; then
+	sed -i -e 's/CC="gcc"/CC="gcc-7"/g' configure
+        sed -i -e 's/CXX="g++"/CXX="g++-7"/g' configure
+fi
+
 if [[ $VBOX_BUILD_KIND = "debug" ]];	then	./configure --build-debug --disable-hardening
 					else	./configure --disable-hardening
 fi
