@@ -33,7 +33,9 @@ echo "--------------------------------------------------------------------------
 echo "Downloading required packages"
 echo "--------------------------------------------------------------------------"
 echo "+ Common packages ..."
-sudo apt-get install -y	-qq	gcc-7				\
+sudo apt-get install -y	-qq	kbuild				\
+				yasm				\
+				gcc-7				\
 				g++-7				\
 				bcc				\
 				acpica-tools			\
