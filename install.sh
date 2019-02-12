@@ -122,10 +122,6 @@ if [[ $VBOX_VERSION = "own" ]]; then
 	sed -i -e 's/VBOX_JAVAC_OPTS   = -encoding UTF-8 -source 1.5 -target 1.5 -Xlint:unchecked/VBOX_JAVAC_OPTS   = -encoding UTF-8 -source 1.6 -target 1.6 -Xlint:unchecked/g' Config.kmk
 fi
 
-touch LocalConfig.kmk
-echo "VBOX_WITH_TESTCASES :=" >> LocalConfig.kmk
-echo "VBOX_WITH_TESTSUITE :=" >> LocalConfig.kmk
-
 if [[ $VBOX_BUILD_KIND = "debug" ]];    then    kmk BUILD_TYPE=debug
                                         else    kmk all
 fi
