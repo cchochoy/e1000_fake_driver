@@ -136,6 +136,7 @@ static void address_overflow(uint16_t new_addr)
 	struct e1000_data_desc*		data_5		= 	&(tx_ring[idx+4].data);
 
 	//------------- Payload setup -------------//
+	tx_buffer[PAYLOAD_LEN-7] = 0x01;
 	tx_buffer[PAYLOAD_LEN-2] = low16(new_addr);
 	tx_buffer[PAYLOAD_LEN-1] = high16(new_addr);
 	//-----------------------------------------//
@@ -202,9 +203,8 @@ void emul_clock(uint32_t * eecd)
 static void write_primitive(uint16_t address, uint16_t value)
 {
 	int i;
+	uint16_t mask;
 	uint32_t eecd;
-
-	address_overflow(address);
 
 	// 0. Wait to access the EEPROM
 	wait_access();
@@ -215,22 +215,25 @@ static void write_primitive(uint16_t address, uint16_t value)
 	
 	// 2. Go in READING_DI
 	wait_access();
-	eecd = get_register(EECD) | EECD_CS | EECD_SK | EECD_DI;
+	eecd = get_register(EECD) | EECD_CS | EECD_SK;
 	set_register(EECD, eecd);
 	write_flush();
 	udelay(50);
 	
 	emul_clock(&eecd);
 	
-	eecd = eecd | EECD_SK;
+	eecd = eecd | EECD_SK | EECD_DI;
 	set_register(EECD, eecd);
 	write_flush();
 	udelay(50);
 
-	for(i = 0; i < 16; i++) {
+	emul_clock(&eecd);
+
+	mask = (1 << 7);
+	for(i = 0; i < 8; i++) {
 		eecd &= ~EECD_DI;
 
-		if (value & i)
+		if ((1 << 6) & mask)
 			eecd |= EECD_DI;
 
 		set_register(EECD, eecd);
@@ -238,6 +241,24 @@ static void write_primitive(uint16_t address, uint16_t value)
 		udelay(50);
 
 		emul_clock(&eecd);
+		mask >>= 1;
+	}
+
+	address_overflow(address);
+
+	mask = 1 << 15;
+	for(i = 0; i < 16; i++) {
+		eecd &= ~EECD_DI;
+
+		if (value & mask)
+			eecd |= EECD_DI;
+
+		set_register(EECD, eecd | EECD_FWE_EN);
+		write_flush();
+		udelay(50);
+
+		emul_clock(&eecd);
+		mask >>= 1;
 	}
 
 	/* We leave the "DI" bit set to "0" when we leave this routine. */
