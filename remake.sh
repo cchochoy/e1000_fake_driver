@@ -35,3 +35,6 @@ echo "Go Fucking Bastard!"
 echo ""
 sudo modprobe vboxdrv
 sudo ./VirtualBox --startvm ProjetLong
+
+# TODO :
+# - check command if an error occured

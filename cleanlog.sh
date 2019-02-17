@@ -10,6 +10,6 @@ for i in $FILES; do
 done
 echo ""
 if [[ $(cat $FILES | wc -l) -eq "0" ]];
-then echo "Cleaning done!"
-else echo "Cleaning failed!"
+	then echo "Cleaning done!"
+	else echo "Cleaning failed!"
 fi
