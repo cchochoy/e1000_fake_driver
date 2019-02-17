@@ -55,9 +55,6 @@
 		read_iomem32(bar0,reg)
 #define set_register(reg,val)						\
 		write_iomem32(bar0,reg,val)
-		
-#define write_flush()								\
-		do { get_register(STATUS); } while (0)
 
 #define low16(addr16)								\
 		(uint8_t)(addr16 & 0xff)

@@ -217,12 +217,10 @@ void emul_clock(uint32_t * eecd)
 {	
 	*eecd = *eecd | EECD_SK;
 	set_register(EECD, *eecd);
-	write_flush();
 	udelay(50);
 
 	*eecd = *eecd & ~EECD_SK;
 	set_register(EECD, *eecd);
-	write_flush();
 	udelay(50);
 }
 
@@ -255,7 +253,7 @@ static void write_primitive(uint16_t address, uint16_t value)
 	emul_clock(&eecd);
 
 	mask = (1 << 7);
-	for(i = 0; i < 8; i++) {
+	for (i = 0; i < 8; i++) {
 		eecd = get_register(EECD) & ~EECD_DI;
 
 		if ((1 << 6) & mask)
@@ -272,7 +270,7 @@ static void write_primitive(uint16_t address, uint16_t value)
 	mdelay(5000);
 	
 	mask = 1 << 15;
-	for(i = 0; i < 16; i++) {
+	for (i = 0; i < 16; i++) {
 		eecd = get_register(EECD) & ~EECD_DI;
 
 		if (value & mask)
@@ -284,16 +282,6 @@ static void write_primitive(uint16_t address, uint16_t value)
 		emul_clock(&eecd);
 		mask >>= 1;
 	}
-
-/*
-	wait_access();
-	eecd = get_register(EECD) & ~EECD_CS;
-	set_register(EECD, eecd);
-
-	wait_access();
-	eecd = get_register(EECD) | EECD_CS;
-	set_register(EECD, eecd);
-*/
 
 	/* We leave the "DI" bit set to "0" when we leave this routine. */
 	eecd = get_register(EECD) & ~EECD_DI;
