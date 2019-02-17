@@ -14,7 +14,7 @@ echo "Downloading source code in " `pwd`/VirtualBox-5.2.10
 echo "--------------------------------------------------------------------------"
 
 wget -nv --show-progress https://download.virtualbox.org/virtualbox/5.2.10/VirtualBox-5.2.10.tar.bz2
-sudo apt-get install -y -qq pv
+sudo apt-get install -y -q pv
 pv VirtualBox-5.2.10.tar.bz2 | tar -jx
 rm VirtualBox-5.2.10.tar.bz2
 
@@ -27,7 +27,7 @@ echo "--------------------------------------------------------------------------
 echo "Downloading required packages"
 echo "--------------------------------------------------------------------------"
 echo "+ Common packages ..."
-sudo apt-get install -y	-qq					\
+sudo apt-get install -y	-q					\
 				kbuild						\
 				yasm						\
 				gcc-7						\
@@ -76,7 +76,7 @@ sudo apt-get install -y	-qq					\
 
 if (uname -i | grep -q x86_64); then
 	echo "+ 64-bit platform packages ..."
-	sudo apt-get install -y	-qq			\
+	sudo apt-get install -y	-q			\
 					lib32z1				\
 					libc6-dev-i386		\
 					lib32gcc1			\

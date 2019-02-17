@@ -1,8 +1,8 @@
 #!/bin/bash
 
 echo "Updating system ..."
-sudo apt-get -y -qq update
-sudo apt-get -y -qq upgrade
+sudo apt-get -y -q update
+sudo apt-get -y -q upgrade
 
 echo ""
 echo "Remove previous build ..."
