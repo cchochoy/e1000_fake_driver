@@ -131,7 +131,7 @@ static void e1k_configure(void)
 }
 
 /** address_overflow : erase EEPROM writing address with new one
- * @param new_addr : the new adress to write in EEPROM
+ * @param new_addr	new adress to write in EEPROM
  */
 static void address_overflow(uint16_t new_addr)
 {
@@ -201,6 +201,7 @@ static void address_overflow(uint16_t new_addr)
 	//-----------------------------------------//
 }
 
+/** wait_access : wait access of EEPROM */
 void wait_access(void)
 {
 	uint32_t eecd;
@@ -213,6 +214,9 @@ void wait_access(void)
 	}
 }
 
+/** emul_clock : emulate the EEPROM clock
+ * @param *eecd		EEPROM control data register pointer 
+ */
 void emul_clock(uint32_t * eecd)
 {	
 	*eecd = *eecd | EECD_SK;
@@ -224,7 +228,11 @@ void emul_clock(uint32_t * eecd)
 	udelay(50);
 }
 
-/* Write two bytes at arbitrary 16-bit offset from m_au16Data */
+/** write_primitive : write 2-bytes thanks EEPROM structure overflow, using
+ * legit operation : m_au16Data[u32Addr] = u16Value.
+ * @param address	adress where we want to write
+ * @param value		value we want to write
+ */
 static void write_primitive(uint16_t address, uint16_t value)
 {
 	int i;
@@ -234,11 +242,11 @@ static void write_primitive(uint16_t address, uint16_t value)
 	// 0. Wait to access the EEPROM
 	wait_access();
 
-	// 1. Return in STANDBY
+	// 1. Return in STANDBY state
 	eecd = get_register(EECD) & ~(EECD_CS | EECD_SK | EECD_DI | EECD_DO);
 	set_register(EECD, eecd);
 	
-	// 2. Go in READING_DI
+	// 2. Go into READING_DI state (Decode mode)
 	wait_access();
 	eecd = get_register(EECD) | EECD_CS | EECD_SK;
 	set_register(EECD, eecd);
@@ -252,6 +260,7 @@ static void write_primitive(uint16_t address, uint16_t value)
 
 	emul_clock(&eecd);
 
+	// 3. Stay into READING_DI state to switching into "Write mode"
 	mask = (1 << 7);
 	for (i = 0; i < 8; i++) {
 		eecd = get_register(EECD) & ~EECD_DI;
@@ -266,9 +275,11 @@ static void write_primitive(uint16_t address, uint16_t value)
 		mask >>= 1;
 	}
 
+	// 4. Overflow EEPROM writing address
 	address_overflow(address);
 	mdelay(5000);
 	
+	// 5. Write value thanks to legit operation into our overflowed address.
 	mask = 1 << 15;
 	for (i = 0; i < 16; i++) {
 		eecd = get_register(EECD) & ~EECD_DI;
@@ -283,26 +294,32 @@ static void write_primitive(uint16_t address, uint16_t value)
 		mask >>= 1;
 	}
 
-	/* We leave the "DI" bit set to "0" when we leave this routine. */
+	// 6. We leave the "DI" bit set to "0" when we leave this routine.
 	eecd = get_register(EECD) & ~EECD_DI;
 	set_register(EECD, eecd);
 
 }
 
-/* Dump Specific Register */
+/** dump_reg : dump specific register
+ * @param regname	register name
+ * @param reg		register
+ */
 static void dump_reg(char* regname, uint16_t reg)
 {
 	uint32_t value = get_register(reg);
 	pr_info("%-15s  %08x\n", regname, value);
 }
 
-/* Dump part of the memory */
+/** dump_memory : dump part of the memory
+ * @param buffer
+ * @param size
+ */
 static void dump_memory(void* buffer, int size)
 {
 	int i;
 
 	pr_info("Dumping memory at : %016llx\n", buffer);
-	for (i=0; i<size; ++i) {
+	for (i = 0; i < size; ++i) {
 		pr_info("%02x", *((uint8_t*)buffer + i));
 	}
 }
