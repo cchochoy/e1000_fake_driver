@@ -1,3 +1,7 @@
+# Local VBox folder
+VirtualBox-5.2.10
+
+# Building stuff in fake_driver folder
 fake_driver/*.o
 fake_driver/*.o.cmd
 fake_driver/modules.order
@@ -7,3 +11,6 @@ fake_driver/*.ko.cmd
 fake_driver/*.mod.c
 fake_driver/*.mod.o
 fake_driver/*.mod.o.cmd
+
+# VM Disk
+Ubuntu\ *
