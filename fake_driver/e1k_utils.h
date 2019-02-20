@@ -13,6 +13,7 @@
 #define CTRL		0x00000		/* Device Control					- 	RW	*/
 #define STATUS		0x00008		/* Device Status					-	RO	*/
 #define EECD		0x00010		/* EEPROM/Flash Control				- 	RW	*/
+#define RCTL		0x00100		/* RX Control						-	RW	*/
 #define TCTL		0x00400		/* TX Control						- 	RW	*/
 #define TDBAL		0x03800		/* TX Descriptor Base Address Low	- 	RW	*/
 #define TDBAH		0x03804		/* TX Descriptor Base Address High	- 	RW	*/
@@ -33,6 +34,11 @@
 #define EECD_FWE_EN 0x00000020  /* Enable FLASH writes						*/
 #define EECD_REQ	0x00000040	/* EEPROM Access Request					*/
 #define EECD_GNT	0x00000080	/* EEPROM Access Grant						*/
+
+/* ------------------------ RCTL Register Bits Masks ---------------------- */
+#define RCTL_LBM_NO  0x00000000	/* no loopback mode */
+#define RCTL_LBM_MAC 0x00000040	/* MAC loopback mode */
+#define RCTL_LBM_SLP 0x00000080	/* serial link loopback mode */
 
 /* ------------------------ TCTL Register Bits Masks ---------------------- */
 #define TCTL_EN		0x00000002	/* Enable tx								*/
