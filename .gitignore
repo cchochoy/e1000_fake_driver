@@ -14,3 +14,6 @@ fake_driver/*.mod.o.cmd
 
 # VM Disk
 Ubuntu\ *
+
+# VS Code folder
+.vscode
