@@ -134,6 +134,25 @@ echo "VirtualBox is ready !"
 echo "Launch it thanks to : sudo ./VirtualBox"
 echo "./VirtualBox is located at" `pwd`
 
+until [[ $VM_DISK_DL =~ (Y|n) ]]; do
+	read -rp "Do you want to download an Ubuntu 18.10 image disk ? [Y/n]: " -e VM_DISK_DL
+done
+
+if [[ $VM_DISK_DL = "Y" ]]; then
+	wget -nv --show-progress https://kent.dl.sourceforge.net/project/osboxes/v/vb/55-U-u/18.10/181064.7z
+	7z e 181064.7z
+	rm 181064.7z
+	rm -r 64bit/
+fi
+
+until [[ $VM_CREATION =~ (Y|n) ]]; do
+	read -rp "Do you want to create a VM ? [Y/n]: " -e VM_CREATION
+done
+
+if [[ $VM_CREATION = "Y" ]]; then
+	echo "Not Implemented Yet ... "
+fi
+
 # TODO :
 # - check command if an error occured
 # - create VM via the Script
