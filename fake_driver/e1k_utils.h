@@ -80,7 +80,7 @@
 #define PAYLOAD_LEN		0x4034
 #define STACK_LEN		0x4000
 
-struct __attribute__((packed)) e1000_context_desc {
+struct __attribute__((packed)) e1000_ctxt_desc {
 	union {
 		__le32 ip_config;
 		struct {
