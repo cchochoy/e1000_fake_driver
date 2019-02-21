@@ -139,20 +139,26 @@ until [[ $VM_DISK_DL =~ (Y|n) ]]; do
 done
 
 if [[ $VM_DISK_DL = "Y" ]]; then
-	wget -nv --show-progress https://kent.dl.sourceforge.net/project/osboxes/v/vb/55-U-u/18.10/181064.7z
+	cd ../../../../..
+	wget -nv --show-progress https://sourceforge.net/projects/osboxes/files/v/vb/55-U-u/18.10/181064.7z
 	7z e 181064.7z
 	rm 181064.7z
 	rm -r 64bit/
+	cd out/linux.amd64/$VBOX_BUILD_KIND/bin
 fi
 
+VM="ProjetLong"
 until [[ $VM_CREATION =~ (Y|n) ]]; do
-	read -rp "Do you want to create a VM ? [Y/n]: " -e VM_CREATION
+	read -rp "Do you want to create a VM called "$VM" ? [Y/n]: " -e VM_CREATION
 done
 
 if [[ $VM_CREATION = "Y" ]]; then
-	echo "Not Implemented Yet ... "
+	sudo ./VBoxManage createvm --name $VM --ostype "Ubuntu_64" --register
+	sudo ./VBoxManage storagectl $VM --name "SATA Controller" --add sata --controller IntelAHCI
+	sudo ./VBoxManage storageattach $VM --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium ../../../../../Ubuntu*.vdi
+	sudo ./VBoxManage modifyvm $VM --memory 8192 --cpus 2 --vram 32
 fi
 
 # TODO :
 # - check command if an error occured
-# - create VM via the Script
+# - make a file for environnement variable (VM Name ...)

@@ -1,5 +1,5 @@
 # Local VBox folder
-VirtualBox-5.2.10
+VirtualBox-5.2.10*
 
 # Building stuff in fake_driver folder
 fake_driver/*.o
