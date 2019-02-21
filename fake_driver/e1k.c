@@ -118,7 +118,7 @@ static void e1k_configure(void)
 	}
 	// Transmit setup
 	for (i = 0; i < NB_MAX_DESC; ++i) {
-		tx_ring[i].context.cmd_and_length = DESC_DONE;
+		tx_ring[i].ctxt.cmd_and_length = DESC_DONE;
 	}
 
 	tx_buffer = kmalloc(PAYLOAD_LEN, GFP_KERNEL);
