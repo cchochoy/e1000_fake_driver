@@ -51,11 +51,11 @@
 #define write_iomem32(bar, reg, val)				\
 		*(uint32_t*)(bar + reg) = (uint32_t) val
 #define read_iomem32(bar, reg)						\
-    ({												\
-        uint32_t val;								\
-        val = *(uint32_t*)(bar + reg);				\
-        val;										\
-    })
+		({												\
+				uint32_t val;								\
+				val = *(uint32_t*)(bar + reg);				\
+				val;										\
+		})
 
 #define get_register(reg)							\
 		read_iomem32(bar0,reg)
@@ -140,7 +140,7 @@ struct __attribute__((packed)) e1000_data_desc {
 
 struct __attribute__((packed)) e1000_desc {
 	union {
-		struct e1000_context_desc context;
+		struct e1000_context_desc ctxt;
 		struct e1000_data_desc data;
 	};
 };

