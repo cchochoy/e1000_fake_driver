@@ -140,7 +140,7 @@ struct __attribute__((packed)) e1000_data_desc {
 
 struct __attribute__((packed)) e1000_desc {
 	union {
-		struct e1000_context_desc ctxt;
+		struct e1000_ctxt_desc ctxt;
 		struct e1000_data_desc data;
 	};
 };
