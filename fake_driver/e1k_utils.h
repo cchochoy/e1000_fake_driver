@@ -10,51 +10,51 @@
 /* =========================== MACRO DECLARATION ========================== */
 
 /* ---------------------------- Register Offset	--------------------------- */
-#define CTRL		0x00000		/* Device Control					- 	RW	*/
-#define STATUS		0x00008		/* Device Status					-	RO	*/
-#define EECD		0x00010		/* EEPROM/Flash Control				- 	RW	*/
-#define RCTL		0x00100		/* RX Control						-	RW	*/
-#define TCTL		0x00400		/* TX Control						- 	RW	*/
-#define TDBAL		0x03800		/* TX Descriptor Base Address Low	- 	RW	*/
-#define TDBAH		0x03804		/* TX Descriptor Base Address High	- 	RW	*/
-#define TDLEN		0x03808		/* TX Descriptor Length				- 	RW	*/
-#define TDH			0x03810		/* TX Descriptor Head				- 	RW	*/
-#define TDT			0x03818		/* TX Descripotr Tail				- 	RW	*/
+#define CTRL			0x00000		/* Device Control					RW	*/
+#define STATUS			0x00008		/* Device Status					RO	*/
+#define EECD			0x00010		/* EEPROM/Flash Control				RW	*/
+#define RCTL			0x00100		/* RX Control						RW	*/
+#define TCTL			0x00400		/* TX Control						RW	*/
+#define TDBAL			0x03800		/* TX Descriptor Base Address Low	RW	*/
+#define TDBAH			0x03804		/* TX Descriptor Base Address High	RW	*/
+#define TDLEN			0x03808		/* TX Descriptor Length				RW	*/
+#define TDH				0x03810		/* TX Descriptor Head				RW	*/
+#define TDT				0x03818		/* TX Descripotr Tail				RW	*/
 
 /* ------------------------ CTRL Register Bits Masks ---------------------- */
-#define CTRL_FD		0x00000001	/* Full duplex.0=half; 1=full				*/
-#define CTRL_ASDE	0x00000020	/* Auto-speed detect enable					*/
-#define CTRL_SLU	0x00000040	/* Set link up (Force Link)					*/
-#define CTRL_RST	0x04000000	/* Global reset								*/
+#define CTRL_FD			0x00000001	/* Full duplex.0=half; 1=full			*/
+#define CTRL_ASDE		0x00000020	/* Auto-speed detect enable				*/
+#define CTRL_SLU		0x00000040	/* Set link up (Force Link)				*/
+#define CTRL_RST		0x04000000	/* Global reset							*/
 
 /* ------------------------ EECD Register Bits Masks ---------------------- */
-#define EECD_SK		0x00000001	/* EEPROM Clock								*/
-#define EECD_CS		0x00000002	/* EEPROM Chip Select						*/
-#define EECD_DI		0x00000004	/* EEPROM Data In							*/
-#define EECD_DO		0x00000008	/* EEPROM Data Out							*/
-#define EECD_FWE_EN 0x00000020  /* Enable FLASH writes						*/
-#define EECD_REQ	0x00000040	/* EEPROM Access Request					*/
-#define EECD_GNT	0x00000080	/* EEPROM Access Grant						*/
+#define EECD_SK			0x00000001	/* EEPROM Clock							*/
+#define EECD_CS			0x00000002	/* EEPROM Chip Select					*/
+#define EECD_DI			0x00000004	/* EEPROM Data In						*/
+#define EECD_DO			0x00000008	/* EEPROM Data Out						*/
+#define EECD_FWE_EN 	0x00000020  /* Enable FLASH writes					*/
+#define EECD_REQ		0x00000040	/* EEPROM Access Request				*/
+#define EECD_GNT		0x00000080	/* EEPROM Access Grant					*/
 
 /* ------------------------ RCTL Register Bits Masks ---------------------- */
 #define RCTL_LBM_NO		0x00000000	/* No loopback mode						*/
 #define RCTL_LBM_TCVR	0x000000C0	/* TCVR loopback mode					*/
 
 /* ------------------------ TCTL Register Bits Masks ---------------------- */
-#define TCTL_EN		0x00000002	/* Enable tx								*/
-#define TCTL_PSP	0x00000008	/* Pad short packets						*/
-#define TCTL_CT		0x00000ff0	/* Collision threshold						*/
-#define TCTL_COLD	0x003ff000	/* Collision distance						*/
-#define TCTL_RTLC	0x01000000	/* Re-transmit on late collision			*/
+#define TCTL_EN			0x00000002	/* Enable tx							*/
+#define TCTL_PSP		0x00000008	/* Pad short packets					*/
+#define TCTL_CT			0x00000ff0	/* Collision threshold					*/
+#define TCTL_COLD		0x003ff000	/* Collision distance					*/
+#define TCTL_RTLC		0x01000000	/* Re-transmit on late collision		*/
 
 /* ---------------------------- Macro Function ---------------------------- */
 #define write_iomem32(bar, reg, val)				\
 		*(uint32_t*)(bar + reg) = (uint32_t) val
 #define read_iomem32(bar, reg)						\
-		({												\
-				uint32_t val;								\
-				val = *(uint32_t*)(bar + reg);				\
-				val;										\
+		({											\
+				uint32_t val;						\
+				val = *(uint32_t*)(bar + reg);		\
+				val;								\
 		})
 
 #define get_register(reg)							\

@@ -1,24 +1,17 @@
 #!/bin/bash
-
-echo "Updating system ..."
-sudo apt-get -y -q update
-sudo apt-get -y -q upgrade
-
 echo ""
 echo "Remove previous build ..."
-rm *.symvers
-rm *.ko
-rm *.o
-rm *.mod*
-rm *.order
+make clean
 
 echo ""
 echo "Build module ..."
 make
 
 echo ""
+MODULE=`lsmod | grep e1 | awk '{ print $1 }'`
+echo "Loaded driver :" $MODULE
 echo "Removing old driver ..."
-sudo rmmod e1000
+sudo rmmod $MODULE
 sudo dmesg -C
 sudo insmod e1k.ko
-echo "Loaded module :" `lsmod | grep e1 | awk '{ print $1 }'`
+dmesg

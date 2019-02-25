@@ -28,13 +28,13 @@ static int __init e1k_init(void);
 static void __exit e1k_exit(void);
 static uint8_t * map_mmio(void);
 static void e1k_configure(void);
+static void enable_loopback(void);
+static void disable_loopback(void);
 static void heap_overflow(uint16_t new_addr);
 static void write_primitive(uint16_t address, uint16_t value);
 static uint64_t aslr_bypass(void);
 static void stack_overflow(void);
 static void nx_bypass(void);
-static void enable_loopback(void);
-static void disable_loopback(void);
 
 /* ==================== GLOBAL VARIABLES DECLARATION ====================== */
 uint8_t * bar0, * tx_buffer;
