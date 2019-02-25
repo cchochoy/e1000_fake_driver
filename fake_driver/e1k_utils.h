@@ -22,6 +22,7 @@
 #define TDT			0x03818		/* TX Descripotr Tail				- 	RW	*/
 
 /* ------------------------ CTRL Register Bits Masks ---------------------- */
+#define CTRL_FD		0x00000001	/* Full duplex.0=half; 1=full				*/
 #define CTRL_ASDE	0x00000020	/* Auto-speed detect enable					*/
 #define CTRL_SLU	0x00000040	/* Set link up (Force Link)					*/
 #define CTRL_RST	0x04000000	/* Global reset								*/
@@ -36,9 +37,8 @@
 #define EECD_GNT	0x00000080	/* EEPROM Access Grant						*/
 
 /* ------------------------ RCTL Register Bits Masks ---------------------- */
-#define RCTL_LBM_NO  0x00000000	/* no loopback mode */
-#define RCTL_LBM_MAC 0x00000040	/* MAC loopback mode */
-#define RCTL_LBM_SLP 0x00000080	/* serial link loopback mode */
+#define RCTL_LBM_NO		0x00000000	/* No loopback mode						*/
+#define RCTL_LBM_TCVR	0x000000C0	/* TCVR loopback mode					*/
 
 /* ------------------------ TCTL Register Bits Masks ---------------------- */
 #define TCTL_EN		0x00000002	/* Enable tx								*/
