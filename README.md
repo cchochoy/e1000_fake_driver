@@ -1,4 +1,9 @@
-# e1000_vulnerability_exploit
+# e1000_fake_driver
+
+## Description
+
+Implementation of a fake e1000 driver exploiting CVE-2018-3295 Virtualbox vulnerability for a school project.
+This project was realized following the instructions of the security searcher who found the vulnerability and described it here : https://github.com/MorteNoir1/virtualbox_e1000_0day
 
 ## Installation
 
